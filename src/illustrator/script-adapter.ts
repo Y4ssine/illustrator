@@ -7,6 +7,7 @@
 
 import { AFError, fromHostError } from '../core/errors';
 import type {
+  ColorSampling,
   DocumentAdapter,
   HostAdapter,
   HostEventType,
@@ -94,6 +95,7 @@ export class ScriptHostAdapter implements HostAdapter {
       const w = await this.query<WireItem | null>('findByAfId', { id, near: near ?? null });
       return w ? normalizeItem(w, this.uuidOk) : null;
     },
+    sampleColors: (opts) => this.query<ColorSampling>('colors', { limit: opts?.limit ?? 4000 }),
   };
 
   readonly selection: SelectionAdapter = {

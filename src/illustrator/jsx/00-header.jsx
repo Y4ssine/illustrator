@@ -17,7 +17,7 @@
  */
 
 var AFHost = {};
-AFHost.VERSION = '0.1.0';
-AFHost.PROTOCOL = 1;
+AFHost.VERSION = '0.2.0';
+AFHost.PROTOCOL = 2;
 AFHost.PREVIEW_PREFIX = '\u27E1 AF PREVIEW';
 AFHost.caps = { gradientStopOpacity: true, applyEffect: true };

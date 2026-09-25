@@ -10,7 +10,7 @@
  */
 
 import * as dom from './mock-dom';
-import { restoreDoc, serializeDoc, type DocJSON } from './serialize';
+import { cloneItem, restoreDoc, serializeDoc, type DocJSON } from './serialize';
 
 export interface SimFileSystem {
   files: Map<string, string>;
@@ -45,6 +45,7 @@ export class SimRuntime {
       saveDialogResult: opts.fs?.saveDialogResult ?? null,
     };
     this.app._undoHook = (dir) => this.undoRedo(dir);
+    this.app._cloneHook = (item) => cloneItem(item);
     this.app._saveHook = (doc, path) => {
       const json = serializeDoc(doc, false);
       json.saved = true;

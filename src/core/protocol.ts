@@ -52,8 +52,14 @@ export type Paint =
   | {
       t: 'radial' | 'linear';
       stops: GradientStopSpec[];
-      /** Linear gradient angle in degrees (0 = left→right). */
+      /**
+       * Gradient angle in degrees, Illustrator convention: 0 = left → right,
+       * 90 = bottom → top (counter-clockwise positive). The host rotates only
+       * the fill gradient, not the object.
+       */
       angle?: number;
+      /** Radial only: scale the gradient to the object's aspect (elliptical falloff). */
+      fit?: 'circle' | 'ellipse';
       /**
        * Name of the document gradient to create or reuse. Reusing by name keeps
        * the Swatches panel from filling up with one gradient per object.
@@ -65,6 +71,8 @@ export type Paint =
        */
       fallback?: 'fadeToWhiteMultiply';
     };
+
+export type GradientPaint = Extract<Paint, { t: 'radial' | 'linear' }>;
 
 export interface StrokeSpec {
   c: string;
@@ -162,7 +170,51 @@ export type HostOp =
   | { op: 'artboard.activate'; index: number }
   | { op: 'selection.set'; refs: Ref[] }
   | { op: 'doc.create'; w: number; h: number; colorSpace: 'RGB' | 'CMYK'; artboardName?: string }
-  | { op: 'af.removeTagged'; types: string[]; scope: 'document' | { artboard: number } };
+  | { op: 'af.removeTagged'; types: string[]; scope: 'document' | { artboard: number } }
+  /** Bezier path(s). One subpath → PathItem; several → CompoundPathItem (holes by direction). */
+  | ({ op: 'shape.path'; paths: Array<{ closed: boolean; pts: number[][] }> } & CommonShapeProps)
+  /** Point text; (x, y) is the baseline anchor. `align` also sets which side the anchor is on. */
+  | ({ op: 'text.point'; x: number; y: number } & TextProps)
+  /** Area text inside the rectangle (wraps; Arabic needs the World-Ready composer, set by the host). */
+  | ({ op: 'text.area'; x: number; y: number; w: number; h: number } & TextProps)
+  | { op: 'item.duplicate'; ref: Ref; to: Place; name?: string; tags?: TagMap }
+  /** Restyle an item (recursively for groups/compound paths/text). */
+  | { op: 'item.restyle'; ref: Ref; fill?: Paint; stroke?: StrokeSpec | null; opacity?: number; blend?: BlendMode; recursive: boolean }
+  /**
+   * Affine transform in design space: x' = a·x + c·y + tx, y' = b·x + d·y + ty.
+   * The host converts to Illustrator's Y-up matrix and corrects for the pivot.
+   */
+  | { op: 'item.transform'; ref: Ref; m: [number, number, number, number, number, number]; gradients: boolean }
+  /** Rotate (Illustrator convention: + = counter-clockwise) about a bounding-box anchor. */
+  | { op: 'item.rotate'; ref: Ref; angle: number; about: PivotAnchor; gradients: boolean }
+  /** Turn a group into a clipping group: its top-most item becomes the mask. */
+  | { op: 'group.clip'; ref: Ref }
+  | { op: 'swatch.group'; name: string; colors: Array<{ name: string; c: string }> };
+
+export type PivotAnchor = 'center' | 'left' | 'right' | 'top' | 'bottom' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
+
+export interface TextProps {
+  into: Place;
+  contents: string;
+  size: number;
+  color: string;
+  /**
+   * Candidate fonts (PostScript names), first installed one wins. None
+   * installed → Illustrator's default font and a warning.
+   */
+  fonts?: string[];
+  /** Bold/semibold hint used only by the simulator renderer (the real weight comes from the font name). */
+  weight?: number;
+  align: 'left' | 'center' | 'right';
+  rtl: boolean;
+  /** Leading in pt (auto when omitted). */
+  leading?: number;
+  /** Tracking in 1/1000 em. */
+  tracking?: number;
+  opacity?: number;
+  name?: string;
+  tags?: TagMap;
+}
 
 export type HostOpName = HostOp['op'];
 

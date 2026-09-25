@@ -19,6 +19,8 @@ import {
   MockPathItem,
   MockPlacedItem,
   MockRasterItem,
+  MockSwatch,
+  MockSwatchGroup,
   MockTag,
   MockTextFrame,
   NoColor,
@@ -42,6 +44,8 @@ interface ItemJSON {
   tags: Array<[string, string]>;
   effects: string[];
   shape?: MockPathItem['shape'];
+  grad?: MockPathItem['_grad'];
+  evenodd?: boolean;
   fill?: ColorJSON;
   filled?: boolean;
   stroke?: ColorJSON;
@@ -52,7 +56,21 @@ interface ItemJSON {
   clipped?: boolean;
   items?: ItemJSON[];
   box?: AIBounds;
-  text?: { contents: string; kind: string; size: number; font: string; just: string };
+  text?: {
+    contents: string;
+    kind: string;
+    size: number;
+    font: string;
+    just: string;
+    anchor?: [number, number] | null;
+    color?: ColorJSON;
+    stroke?: ColorJSON;
+    strokeWeight?: number;
+    leading?: number | null;
+    tracking?: number;
+    dir?: string;
+    composer?: string;
+  };
   file?: string;
 }
 
@@ -72,6 +90,8 @@ export interface DocJSON {
   active: number;
   artboards: Array<{ name: string; rect: AIBounds }>;
   gradients: Array<{ name: string; type: string; stops: Array<{ p: number; m: number; o: number; c: ColorJSON }> }>;
+  swatches?: Array<{ name: string; c: ColorJSON }>;
+  swatchGroups?: Array<{ name: string; swatches: string[] }>;
   layers: LayerJSON[];
   activeLayer: string | null;
 }
@@ -121,6 +141,8 @@ function itemToJSON(i: MockItem, withSelection: boolean): ItemJSON {
     return {
       ...base,
       shape: JSON.parse(JSON.stringify(i.shape)),
+      grad: i._grad ? [...i._grad] : null,
+      evenodd: i.evenodd,
       fill: colorToJSON(i.fillColor),
       filled: i.filled,
       stroke: colorToJSON(i.strokeColor),
@@ -133,7 +155,25 @@ function itemToJSON(i: MockItem, withSelection: boolean): ItemJSON {
   if (i instanceof MockGroupItem) return { ...base, clipped: i.clipped, items: i._items.map((c) => itemToJSON(c, withSelection)) };
   if (i instanceof MockCompoundPathItem) return { ...base, items: i._items.map((c) => itemToJSON(c, withSelection)) };
   if (i instanceof MockTextFrame) {
-    return { ...base, box: i.box, text: { contents: i.contents, kind: i.kind, size: i.size, font: i.fontName, just: i.justification } };
+    return {
+      ...base,
+      box: i.box,
+      text: {
+        contents: i.contents,
+        kind: i.kind,
+        size: i.size,
+        font: i.fontName,
+        just: i.justification,
+        anchor: i.anchor ? [...i.anchor] : null,
+        color: colorToJSON(i.textColor),
+        stroke: colorToJSON(i.textStroke),
+        strokeWeight: i.textStrokeWeight,
+        leading: i.leading,
+        tracking: i.tracking,
+        dir: i.direction,
+        composer: i.composer,
+      },
+    };
   }
   if (i instanceof MockPlacedItem || i instanceof MockRasterItem) return { ...base, box: (i as MockPlacedItem).box, file: (i as MockPlacedItem).file };
   return base;
@@ -162,6 +202,8 @@ export function serializeDoc(d: MockDocument, withSelection = true): DocJSON {
       type: g.type,
       stops: g._stops.map((s) => ({ p: s.rampPoint, m: s.midPoint, o: s.opacity, c: colorToJSON(s.color) })),
     })),
+    swatches: d._swatches.map((sw) => ({ name: sw.name, c: colorToJSON(sw.color) })),
+    swatchGroups: d._swatchGroups.map((g) => ({ name: g.name, swatches: g._swatches.map((sw) => sw.name) })),
     layers: d._layers.map((l) => layerToJSON(l, withSelection)),
     activeLayer: d._activeLayer && !d._activeLayer._dead ? d._activeLayer.name : null,
   };
@@ -174,6 +216,8 @@ function itemFromJSON(j: ItemJSON, parent: MockLayer | MockGroupItem | MockCompo
       const p = new MockPathItem();
       p.shape = JSON.parse(JSON.stringify(j.shape));
       p.fillColor = colorFromJSON(j.fill, doc);
+      p._grad = j.grad ? ([...j.grad] as NonNullable<MockPathItem['_grad']>) : null;
+      p.evenodd = !!j.evenodd;
       p.filled = !!j.filled;
       p.strokeColor = colorFromJSON(j.stroke, doc);
       p.stroked = !!j.stroked;
@@ -204,6 +248,14 @@ function itemFromJSON(j: ItemJSON, parent: MockLayer | MockGroupItem | MockCompo
       t.size = j.text!.size;
       t.fontName = j.text!.font;
       t.justification = j.text!.just;
+      t.anchor = j.text!.anchor ? [...j.text!.anchor] : null;
+      if (j.text!.color) t.textColor = colorFromJSON(j.text!.color, doc);
+      if (j.text!.stroke) t.textStroke = colorFromJSON(j.text!.stroke, doc);
+      t.textStrokeWeight = j.text!.strokeWeight ?? 0;
+      t.leading = j.text!.leading ?? null;
+      t.tracking = j.text!.tracking ?? 0;
+      if (j.text!.dir) t.direction = j.text!.dir;
+      if (j.text!.composer) t.composer = j.text!.composer;
       it = t;
       break;
     }
@@ -277,6 +329,24 @@ export function restoreDoc(doc: MockDocument, j: DocJSON, keepUuid = true): void
     });
     return mg;
   });
+  doc._swatches = (j.swatches ?? []).map((sj) => {
+    const sw = new MockSwatch(doc);
+    sw.name = sj.name;
+    sw.color = colorFromJSON(sj.c, doc);
+    return sw;
+  });
+  doc._swatchGroups = (j.swatchGroups ?? []).map((gj) => {
+    const g = new MockSwatchGroup(doc);
+    g.name = gj.name;
+    g._swatches = gj.swatches.map((n) => doc._swatches.find((sw) => sw.name === n)).filter((x): x is MockSwatch => !!x);
+    return g;
+  });
   doc._layers = j.layers.map((l) => layerFromJSON(l, doc, doc, keepUuid));
   doc._activeLayer = j.activeLayer ? (doc._layers.find((l) => l.name === j.activeLayer) ?? null) : null;
+}
+
+/** Deep copy of an item for PageItem.duplicate() (new uuids, not attached to a parent). */
+export function cloneItem(item: MockItem): MockItem {
+  const json = itemToJSON(item, false);
+  return itemFromJSON(json, item.parent, item.document, false);
 }

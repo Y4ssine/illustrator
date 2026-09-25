@@ -316,7 +316,7 @@ export function ColorField(o: { label: string; value: string; onChange: (hex: st
 }
 
 export function TextField(o: { label: string; value: string; placeholder?: string; title?: string; onChange: (v: string) => void }): Field<string> {
-  const input = h('input', { type: 'text', class: 'text-input', value: o.value, placeholder: o.placeholder ?? '', spellcheck: 'false' }) as HTMLInputElement;
+  const input = h('input', { type: 'text', class: 'text-input', value: o.value, placeholder: o.placeholder ?? '', spellcheck: 'false', dir: 'auto' }) as HTMLInputElement;
   input.addEventListener('change', () => o.onChange(input.value));
   const el = h('label', { class: 'field text-field', title: o.title ?? '' }, h('span', { class: 'field-label' }, o.label), input);
   return {

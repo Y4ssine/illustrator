@@ -30,6 +30,10 @@ export const ICONS = {
   check: s('<path d="m3.5 8.5 3 3 6-7"/>'),
   link: s('<path d="M6.5 9.5 9.5 6.5"/><path d="M7 4.5 8.5 3a2.5 2.5 0 0 1 3.5 3.5L10.5 8M9 11.5 7.5 13A2.5 2.5 0 0 1 4 9.5L5.5 8"/>'),
   artboard: s('<rect x="3.5" y="3.5" width="9" height="9"/><path d="M1.5 3.5h1M3.5 1.5v1M13.5 12.5h1M12.5 13.5v1"/>'),
+  create: s('<path d="M3 13.5V7a5 5 0 0 1 10 0v6.5Z"/><path d="M6 13.5V8.5a2 2 0 0 1 4 0v5"/>'),
+  sun: s('<circle cx="8" cy="8" r="2.6"/><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1"/>'),
+  palette: s('<path d="M8 2.2a5.8 5.8 0 1 0 0 11.6c1 0 1.3-.7 1-1.4-.4-.9.2-1.8 1.2-1.8h1.5a2.3 2.3 0 0 0 2.3-2.3C14 4.9 11.3 2.2 8 2.2Z"/><circle cx="5.2" cy="7" r=".8" fill="currentColor"/><circle cx="7.6" cy="4.9" r=".8" fill="currentColor"/><circle cx="10.4" cy="5.8" r=".8" fill="currentColor"/>'),
+  chart: s('<path d="M2.5 13.5h11"/><rect x="3.5" y="8" width="2.2" height="5.5" rx=".4"/><rect x="6.9" y="5" width="2.2" height="8.5" rx=".4"/><rect x="10.3" y="2.5" width="2.2" height="11" rx=".4"/>'),
 } as const;
 
 export type IconName = keyof typeof ICONS;

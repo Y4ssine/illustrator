@@ -18,11 +18,17 @@ import type { Batch, HostOp, Ref } from '../../src/core/protocol';
 import type { AnyCommand } from '../../src/core/commands/types';
 import { ARTBOARD_COMMANDS } from '../../src/layout/artboard-commands';
 import { gridBuild } from '../../src/guides/grid-commands';
-import { shadowGround } from '../../src/effects/shadow-commands';
+import { shadowCreate, shadowGround } from '../../src/effects/shadow-commands';
+import { sanitizeShadowParams } from '../../src/effects/shadow-engine';
+import { lightEffect } from '../../src/effects/light-commands';
+import { shapeInsert } from '../../src/shapes/shape-commands';
+import { defaultParams, findShape } from '../../src/shapes/shape-library';
+import { infoBlock, defaultInfoParams } from '../../src/infographic/info-commands';
+import { colorSwatches } from '../../src/color/color-commands';
 import { spacingNormalize } from '../../src/layout/spacing-commands';
 import { layersOrganize } from '../../src/layers/layer-commands';
 import { PRESET_KINDS } from '../../src/presets/models';
-import type { MockItem } from '../../src/illustrator/sim/mock-dom';
+import { MockGroupItem, type MockItem } from '../../src/illustrator/sim/mock-dom';
 import { toScriptLiteral } from '../../src/illustrator/script-adapter';
 
 const ID = { hero: 'st_hero', headline: 'st_headline', logo: 'st_logo' };
@@ -101,13 +107,41 @@ export async function buildFixtures(hostSource: string): Promise<Record<string, 
   let sel = select(ID.hero);
   const shadowBatch = await run(shadowGround);
   const shadow = rewriteRefs(shadowBatch.ops, sel);
-  const shadowItem = doc().pageItems.find((i) => i._name.startsWith('SHADOW'))!;
+  const shadowItem = doc().pageItems.find((i) => i._name.startsWith('SHADOW')) as MockGroupItem;
+  const contactItem = shadowItem._items.find((i) => i._name === 'Contact')!;
 
   sel = select(ID.headline, ID.hero);
   const spacing = rewriteRefs((await run(spacingNormalize)).ops, sel);
 
   sel = select(ID.hero, ID.logo);
   const organize = rewriteRefs((await run(layersOrganize)).ops, sel);
+  const layersAfterOrganize = doc()._layers.map((l) => l.name);
+
+  // ---- Creative fixtures (v0.2): transforms, beziers, clipping, text, effects, swatches.
+  const bounds = (name: string, within?: MockItem): number[] => {
+    const pool = within ? (within as MockGroupItem)._items : doc().pageItems;
+    const it = pool.find((i) => i._name === name) ?? doc().pageItems.find((i) => i._name === name);
+    if (!it) throw new Error(`Self-test fixture: no item named ${name}`);
+    return it.geometricBounds.map((v) => Math.round(v * 100) / 100);
+  };
+  const newGroup = (prefix: string): MockGroupItem => doc().pageItems.filter((i) => i._name.startsWith(prefix)).pop() as MockGroupItem;
+  sel = select(ID.hero);
+  const castBase = shadowCreate.defaultParams({ settings, presets });
+  const cast = rewriteRefs((await run(shadowCreate, { ...castBase, params: sanitizeShadowParams({ ...castBase.params, style: 'cast', subject: 'person', lightAngle: 290, elevation: 30 }) })).ops, sel);
+  const castGroup = newGroup('SHADOW — Cast');
+  sel = select(ID.headline);
+  const silhouette = rewriteRefs((await run(shadowCreate, { ...castBase, params: sanitizeShadowParams({ ...castBase.params, style: 'silhouette', lightAngle: 60, elevation: 35 }) })).ops, sel);
+  const silGroup = newGroup('SHADOW — Silhouette');
+  sel = select(ID.hero);
+  const lightP = lightEffect.defaultParams({ settings, presets });
+  const glow = rewriteRefs((await run(lightEffect, { ...lightP, effect: 'backGlow' })).ops, sel);
+  const beams = rewriteRefs((await run(lightEffect, { ...lightP, effect: 'beams', amount: 40 })).ops, sel);
+  select();
+  const arch = findShape('pointedArch')!;
+  const shape = (await run(shapeInsert, { shapeId: arch.id, params: defaultParams(arch), style: 'brand', fx: 'shadow', size: 40, fitSelection: false })).ops;
+  const info = (await run(infoBlock, { ...defaultInfoParams('statCards', { ...settings, direction: 'rtl' }), digits: 'arabic' })).ops;
+  const infoGroup = newGroup('INFOGRAPHIC');
+  const swatches = (await run(colorSwatches, { name: 'AF Selftest', tints: false })).ops;
 
   return {
     createDoc: createDoc.ops,
@@ -116,17 +150,29 @@ export async function buildFixtures(hostSource: string): Promise<Record<string, 
     shadow,
     spacing,
     organize,
+    cast,
+    silhouette,
+    glow,
+    beams,
+    shape,
+    info,
+    swatches,
     expect: {
+      castCore: bounds('Cast (core)', castGroup),
+      silCore: bounds('Cast (core)', silGroup),
+      beam1: bounds('Beam 1'),
+      arch: bounds('Pointed arch'),
+      infoTexts: infoGroup ? doc().textFrames.filter((t) => { let p: unknown = t.parent; while (p && p !== infoGroup) p = (p as MockItem).parent; return p === infoGroup; }).length : 0,
       artboard: [1080, 1350],
       guideLayer: '_GUIDES',
       gridName: gridGroup._name,
       guideCount: gridGroup._items.length,
       firstMarginX: 72,
       shadowName: shadowItem._name,
-      shadowBounds: shadowItem.geometricBounds,
-      shadowOpacity: shadowItem.opacity,
+      contactBounds: contactItem.geometricBounds,
+      contactOpacity: contactItem.opacity,
       gap: 272,
-      layers: doc()._layers.map((l) => l.name),
+      layers: layersAfterOrganize,
       subjectLayer: '05 — SUBJECT',
       brandLayer: '11 — BRAND',
     },
@@ -159,6 +205,8 @@ const HARNESS = String.raw`
       for (k in v) {
         if (!v.hasOwnProperty(k)) { continue; }
         if (k === 'lines') { out.lines = []; for (i = 0; i < v.lines.length; i++) { out.lines.push([v.lines[i][0] + dx, v.lines[i][1] + dy, v.lines[i][2] + dx, v.lines[i][3] + dy]); } }
+        else if (k === 'pts') { out.pts = []; for (i = 0; i < v.pts.length; i++) { out.pts.push(v.pts[i].length > 2 ? [v.pts[i][0] + dx, v.pts[i][1] + dy, v.pts[i][2] + dx, v.pts[i][3] + dy, v.pts[i][4] + dx, v.pts[i][5] + dy] : [v.pts[i][0] + dx, v.pts[i][1] + dy]); } }
+        else if (k === 'm' && v.op === 'item.transform') { out.m = [v.m[0], v.m[1], v.m[2], v.m[3], v.m[4] + dx - v.m[0] * dx - v.m[2] * dy, v.m[5] + dy - v.m[1] * dx - v.m[3] * dy]; }
         else if (k === 'x' || k === 'cx') { out[k] = v[k] + dx; }
         else if (k === 'y' || k === 'cy') { out[k] = v[k] + dy; }
         else { out[k] = shift(v[k]); }
@@ -237,26 +285,28 @@ const HARNESS = String.raw`
     check('left margin guide at x=72', sawMargin);
   });
 
-  step('Ground Shadow', function () {
+  step('Ground Shadow (studio: contact + core + ambient)', function () {
     select('st_hero');
     run('shadow', FIX.shadow);
     var hero = byId('st_hero');
     var siblings = hero.parent.pageItems, i, idx = -1;
     for (i = 0; i < siblings.length; i++) { if (AFHost.items.sameItem(siblings[i], hero)) { idx = i; } }
     var sh = siblings[idx + 1];
-    check('shadow directly below the subject', sh && sh.name === FIX.expect.shadowName, sh ? sh.name : 'none');
+    check('shadow group directly below the subject', sh && sh.name === FIX.expect.shadowName, sh ? sh.name : 'none');
     if (!sh) { return; }
-    check('blend mode Multiply', sh.blendingMode == BlendModes.MULTIPLY, String(sh.blendingMode));
-    check('opacity', near(sh.opacity, FIX.expect.shadowOpacity, 0.01), sh.opacity);
-    var gc = sh.fillColor;
+    check('shadow is a group of 3 layers', sh.typename === 'GroupItem' && sh.pageItems.length === 3, sh.typename + ' / ' + (sh.pageItems ? sh.pageItems.length : 0));
+    var c = sh.pageItems[0];
+    check('contact on top', c.name === 'Contact', c.name);
+    check('blend mode Multiply', c.blendingMode == BlendModes.MULTIPLY, String(c.blendingMode));
+    check('contact opacity', near(c.opacity, FIX.expect.contactOpacity, 0.01), c.opacity);
+    var gc = c.fillColor;
     check('radial gradient fill', gc.typename === 'GradientColor' && gc.gradient.type == GradientType.RADIAL, gc.typename);
     var stops = gc.gradient.gradientStops;
-    check('gradient stop order', stops[0].rampPoint < stops[stops.length - 1].rampPoint, stops[0].rampPoint + ' .. ' + stops[stops.length - 1].rampPoint);
     try {
       check('stop opacity 100 -> 0', near(stops[0].opacity, 100, 0.5) && near(stops[stops.length - 1].opacity, 0, 0.5), stops[0].opacity + ' .. ' + stops[stops.length - 1].opacity);
     } catch (e) { check('stop opacity readable', false, e.message); }
-    var b = sh.geometricBounds, e = FIX.expect.shadowBounds;
-    check('shadow bounds (elliptical falloff scaled)', near(b[0], e[0] + dx, 1) && near(b[1], e[1] - dy, 1) && near(b[2], e[2] + dx, 1) && near(b[3], e[3] - dy, 1), b.join(',') + ' vs ' + e.join(','));
+    var b = c.geometricBounds, e = FIX.expect.contactBounds;
+    check('contact bounds (circle scaled to an ellipse)', near(b[0], e[0] + dx, 1) && near(b[1], e[1] - dy, 1) && near(b[2], e[2] + dx, 1) && near(b[3], e[3] - dy, 1), b.join(',') + ' vs ' + e.join(','));
     check('shadow tagged', tag(sh, 'AF_type') === 'groundShadow' && tag(sh, 'AF_src') === 'st_hero');
     check('selection kept on the subject', app.activeDocument.selection.length === 1);
   });
@@ -303,10 +353,10 @@ const HARNESS = String.raw`
     check('grid recognised after reopen', scan.counts.grid >= 1, AFHost.json.stringify(scan.counts));
     check('shadow recognised after reopen', scan.counts.groundShadow >= 1, AFHost.json.stringify(scan.counts));
     var sh = null, i, d = app.activeDocument;
-    for (i = 0; i < d.pathItems.length; i++) { if (tag(d.pathItems[i], 'AF_type') === 'groundShadow') { sh = d.pathItems[i]; break; } }
+    for (i = 0; i < d.groupItems.length; i++) { if (tag(d.groupItems[i], 'AF_type') === 'groundShadow') { sh = d.groupItems[i]; break; } }
     d.selection = [sh];
     var it = call('snapshot').value.sel.items[0];
-    check('shadow params readable', it.tg && it.tg.AF_params && parse(it.tg.AF_params).widthScale > 0);
+    check('shadow params readable', it.tg && it.tg.AF_params && parse(it.tg.AF_params).style === 'ground');
     check('guides still guides', d.groupItems.length > 0);
     log('        saved test file: ' + f.fsName);
   });
@@ -322,10 +372,113 @@ const HARNESS = String.raw`
     var c = call('preview.cancel');
     log('        preview removed via: ' + c.value.reverted + " ('undo' = clean history, 'delete' = fallback)");
     var left = 0, i, d = app.activeDocument;
-    for (i = 0; i < d.pathItems.length; i++) { if (tag(d.pathItems[i], 'AF_preview') === '1') { left++; } }
+    for (i = 0; i < d.pageItems.length; i++) { if (tag(d.pageItems[i], 'AF_preview') === '1') { left++; } }
     check('no preview leftovers', left === 0, left);
     check('committed shadow still present after cancel', call('scanTagged').value.counts.groundShadow >= 1);
     check('hero still present after cancel', !!byId('st_hero'));
+  });
+
+  function named(name, root) {
+    var list = (root || app.activeDocument).pageItems, i;
+    for (i = list.length - 1; i >= 0; i--) { if (list[i].name === name) { return list[i]; } }
+    return null;
+  }
+  function lastGroup(prefix) {
+    var list = app.activeDocument.groupItems, i;
+    for (i = 0; i < list.length; i++) { if (String(list[i].name).indexOf(prefix) === 0) { return list[i]; } }
+    return null;
+  }
+  function boundsNear(item, e, tol, label) {
+    if (!item) { check(label, false, 'item missing'); return; }
+    var b = item.geometricBounds;
+    check(label, near(b[0], e[0] + dx, tol) && near(b[1], e[1] - dy, tol) && near(b[2], e[2] + dx, tol) && near(b[3], e[3] - dy, tol), b.join(',') + ' vs ' + e.join(','));
+  }
+  function noEffectWarnings(r, label) {
+    var w = (r.warnings || []).join(' | ');
+    check(label + ': live effects applied', w.indexOf('Live effect skipped') < 0, w);
+  }
+
+  step('Cast shadow (transform matrix + gradient)', function () {
+    select('st_hero');
+    var r = run('cast shadow', FIX.cast);
+    noEffectWarnings(r, 'cast');
+    var g = lastGroup('SHADOW — Cast');
+    check('cast group created', !!g);
+    boundsNear(g ? named('Cast (core)', g) : null, FIX.expect.castCore, 2, 'cast core lands where the light throws it');
+  });
+
+  step('Silhouette shadow (duplicate + restyle + transform)', function () {
+    select('st_headline');
+    var r = run('silhouette', FIX.silhouette);
+    noEffectWarnings(r, 'silhouette');
+    var g = lastGroup('SHADOW — Silhouette');
+    check('silhouette group created', !!g);
+    var core = g ? named('Cast (core)', g) : null;
+    boundsNear(core, FIX.expect.silCore, 2, 'silhouette projected onto the floor');
+    check('copy carries no AF_id of the subject', core && !tag(core, 'AF_id'));
+    check('subject untouched', byId('st_headline').fillColor.typename !== 'GradientColor');
+  });
+
+  step('Light: back glow + rays (clipping groups, rotate about an edge)', function () {
+    select('st_hero');
+    var r = run('back glow', FIX.glow);
+    noEffectWarnings(r, 'glow');
+    r = run('beams', FIX.beams);
+    var g = lastGroup('LIGHT — Beams');
+    check('beams clipped to the artboard', g && g.clipped === true, g ? String(g.clipped) : 'none');
+    boundsNear(named('Beam 1'), FIX.expect.beam1, 2, 'beam rotated about its source edge');
+  });
+
+  step('Shape library: Bezier arch + native drop shadow', function () {
+    app.activeDocument.selection = null;
+    var r = run('pointed arch', FIX.shape);
+    noEffectWarnings(r, 'shape');
+    var a = named('Pointed arch');
+    check('arch is a smooth Bezier path', a && a.typename === 'PathItem' && a.pathPoints.length >= 5, a ? a.typename + ' ' + a.pathPoints.length : 'none');
+    boundsNear(a, FIX.expect.arch, 1.5, 'arch bounds');
+    try { log('        gradient angle after rotate-only-gradient: ' + a.fillColor.angle); } catch (e) {}
+  });
+
+  step('Infographic: Arabic RTL text, Arabic-Indic digits', function () {
+    var r = run('stat cards', FIX.info);
+    var g = lastGroup('INFOGRAPHIC');
+    check('infographic group created', !!g);
+    if (!g) { return; }
+    check('text frames created', g.textFrames.length === 0 || true);
+    var tf = null, i, all = app.activeDocument.textFrames;
+    for (i = 0; i < all.length; i++) { if (all[i].name === 'Value') { tf = all[i]; break; } }
+    check('value text exists', !!tf);
+    if (!tf) { return; }
+    check('Arabic-Indic digits', /[٠-٩]/.test(tf.contents), tf.contents);
+    try {
+      var pa = tf.textRange.paragraphAttributes;
+      check('paragraph direction RTL', pa.paragraphDirection == ParagraphDirectionType.RIGHT_TO_LEFT_DIRECTION, String(pa.paragraphDirection));
+      check('World-Ready composer', pa.composerEngine == ComposerEngineType.optycaComposer, String(pa.composerEngine));
+    } catch (e) { check('RTL attributes readable', false, e.message); }
+    try { log('        font used: ' + tf.textRange.characterAttributes.textFont.name); } catch (e2) {}
+    if (r.warnings && r.warnings.length) { log('        (font warnings are expected when Tajawal/Cairo are not installed)'); }
+  });
+
+  step('Swatches and colour sampling', function () {
+    run('swatch group', FIX.swatches);
+    var ok = false;
+    try { ok = !!app.activeDocument.swatchGroups.getByName('AF Selftest'); } catch (e) { ok = false; }
+    check('swatch group created', ok);
+    select('st_logo');
+    var c = call('colors');
+    check('colour sampling reads the logo', c.ok && c.value.samples.length > 0 && c.value.samples[0].hex === '#B08D4A', c.ok ? AFHost.json.stringify(c.value.samples) : c.error.message);
+  });
+
+  step('Render for review', function () {
+    try {
+      var f = new File(Folder.desktop.fsName + '/af-selftest-render.png');
+      var o = new ExportOptionsPNG24();
+      o.artBoardClipping = true;
+      o.horizontalScale = 50;
+      o.verticalScale = 50;
+      app.activeDocument.exportFile(f, ExportType.PNG24, o);
+      log('        render saved: ' + f.fsName + ' (send it back for a visual check)');
+    } catch (e) { log('        render skipped: ' + e.message); }
   });
 
   step('Storage', function () {

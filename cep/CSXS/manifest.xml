@@ -6,9 +6,9 @@
   Chromium 88 features (flexbox gap, :focus-visible, inset).
   RequiredRuntime CSXS 11.0 is a minimum. ScriptPath loads the ExtendScript host into the panel's engine.
 -->
-<ExtensionManifest Version="6.0" ExtensionBundleId="com.artboardforge" ExtensionBundleVersion="0.1.0" ExtensionBundleName="Artboard Forge" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ExtensionManifest Version="6.0" ExtensionBundleId="com.artboardforge" ExtensionBundleVersion="0.2.0" ExtensionBundleName="Artboard Forge" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
-    <Extension Id="com.artboardforge.panel" Version="0.1.0" />
+    <Extension Id="com.artboardforge.panel" Version="0.2.0" />
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>

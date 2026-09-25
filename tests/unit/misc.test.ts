@@ -57,7 +57,9 @@ describe('metadata tags', () => {
 describe('command palette search', () => {
   it('finds shadow commands for "shadow"', () => {
     const hits = searchCommands(DOCUMENT_COMMANDS, 'shadow').map((h) => h.command.id);
-    expect(hits.slice(0, 4).sort()).toEqual(['shadow.contact', 'shadow.contactAmbient', 'shadow.edit', 'shadow.ground'].sort());
+    expect(hits.slice(0, 6).every((id) => id.startsWith('shadow.'))).toBe(true);
+    expect(hits).toContain('shadow.create');
+    expect(hits).toContain('shadow.edit');
   });
 
   it('finds grid commands, keyword matches and multi-term queries', () => {
@@ -189,5 +191,18 @@ describe('settings, colours, script literals', () => {
     expect(/^[\x00-\x7f]*$/.test(lit)).toBe(true);
     expect(JSON.parse(lit)).toEqual({ name: 'يوم التأسيس', sep: ' ' });
     expect(hostCall('ping')).toBe('AFHost.call("ping", {})');
+  });
+});
+
+describe('command wiring', () => {
+  it('every suggested or favourite command id exists, and ids are unique', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { DEFAULT_SETTINGS } = await import('../../src/core/settings');
+    const ids = new Set(DOCUMENT_COMMANDS.map((c) => c.id));
+    const ui = ['app.palette', 'app.repeatLast', 'document.scan', 'app.settings', 'app.presets', 'preview.cancel'];
+    const src = readFileSync(new URL('../../src/core/context.ts', import.meta.url), 'utf8');
+    const used = [...src.matchAll(/'([a-z]+\.[A-Za-z.-]+)'/g)].map((m) => m[1]!);
+    expect([...used, ...DEFAULT_SETTINGS.favorites].filter((id) => !ids.has(id) && !ui.includes(id))).toEqual([]);
+    expect(ids.size).toBe(DOCUMENT_COMMANDS.length);
   });
 });

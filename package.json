@@ -1,6 +1,6 @@
 {
   "name": "artboard-forge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Artboard Forge \u2014 professional layout, grid, shadow and layer tooling for Adobe Illustrator (CEP panel + ExtendScript host).",
   "license": "UNLICENSED",

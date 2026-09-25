@@ -308,7 +308,7 @@ AFHost.runner = (function () {
       return { removed: 0 };
     }
     doc = app.activeDocument;
-    cols = [doc.groupItems, doc.pathItems];
+    cols = [doc.groupItems, doc.compoundPathItems, doc.textFrames, doc.pathItems];
     for (c = 0; c < cols.length; c++) {
       for (i = cols[c].length - 1; i >= 0; i--) {
         it = cols[c][i];

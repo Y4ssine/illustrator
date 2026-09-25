@@ -17,24 +17,23 @@ import { TAG, TAG_NAME_RE, type TagMap } from './protocol';
 
 export const META_VERSION = 1;
 
+export const SHADOW_TYPES = ['groundShadow', 'contactShadow', 'contactAmbientShadow', 'castShadow', 'silhouetteShadow', 'elevationShadow', 'longShadow'] as const;
+export type ShadowAfType = (typeof SHADOW_TYPES)[number];
+
 export type AfType =
-  | 'groundShadow'
-  | 'contactShadow'
-  | 'contactAmbientShadow'
+  | ShadowAfType
   | 'grid'
   | 'guides'
   | 'subject'
-  | 'artboardMarker';
+  | 'artboardMarker'
+  /** Lighting effect group (AF_light names the effect). */
+  | 'light'
+  | 'shape'
+  | 'infographic'
+  | 'background'
+  | 'decor';
 
-export const AF_TYPES: readonly AfType[] = [
-  'groundShadow',
-  'contactShadow',
-  'contactAmbientShadow',
-  'grid',
-  'guides',
-  'subject',
-  'artboardMarker',
-];
+export const AF_TYPES: readonly AfType[] = [...SHADOW_TYPES, 'grid', 'guides', 'subject', 'artboardMarker', 'light', 'shape', 'infographic', 'background', 'decor'];
 
 export interface AfMeta {
   type: AfType | null;
@@ -102,14 +101,23 @@ export function isGeneratedType(type: AfType | null): boolean {
   return type !== null && type !== 'subject';
 }
 
-export function isShadowType(type: AfType | null): type is 'groundShadow' | 'contactShadow' | 'contactAmbientShadow' {
-  return type === 'groundShadow' || type === 'contactShadow' || type === 'contactAmbientShadow';
+export function isShadowType(type: AfType | null): type is ShadowAfType {
+  return type !== null && (SHADOW_TYPES as readonly string[]).includes(type);
 }
 
 export const AF_TYPE_LABEL: Record<AfType, string> = {
   groundShadow: 'Ground Shadow',
   contactShadow: 'Contact Shadow',
   contactAmbientShadow: 'Contact + Ambient Shadow',
+  castShadow: 'Cast Shadow',
+  silhouetteShadow: 'Silhouette Shadow',
+  elevationShadow: 'Floating Shadow',
+  longShadow: 'Long Shadow',
+  light: 'Lighting',
+  shape: 'Shape',
+  infographic: 'Infographic',
+  background: 'Background',
+  decor: 'Decor',
   grid: 'Grid',
   guides: 'Guides',
   subject: 'Subject',

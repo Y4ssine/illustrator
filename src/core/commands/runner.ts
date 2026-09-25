@@ -67,11 +67,13 @@ export class CommandRunner {
     if (this.busy) throw new AFError('BUSY', 'Another Artboard Forge command is still running.', { soft: true });
     this.busy = true;
     try {
+      // Plan against the document WITHOUT the preview: a preview may have
+      // created layers or items the final plan must not rely on.
+      if (this.previewing || this.deps.host.preview.active) await this.cancelPreview();
       const ctx = await this.context(cmd.maxSelection);
       this.validate(cmd, ctx, params);
       let plan = await cmd.plan(ctx, params);
       if (plan.nothing) {
-        if (this.previewing) await this.cancelPreview();
         return { summary: plan.nothing, warnings: plan.warnings, committed: false };
       }
       if (!opts.confirmed) {
@@ -105,14 +107,7 @@ export class CommandRunner {
   }
 
   private async commit(plan: CommandPlan): Promise<Extract<BatchResult, { ok: true }>> {
-    const host = this.deps.host;
-    let res: BatchResult;
-    if (this.previewing) {
-      res = await host.preview.apply(plan.batch);
-      this.previewing = null;
-    } else {
-      res = await host.run(plan.batch);
-    }
+    const res: BatchResult = await this.deps.host.run(plan.batch);
     if (!res.ok) throw fromHostError(res.error);
     return res;
   }

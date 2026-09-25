@@ -10,6 +10,7 @@ import { makeSim } from '../helpers/host';
 import { ARTBOARD_COMMANDS } from '../../src/layout/artboard-commands';
 import { gridBuild } from '../../src/guides/grid-commands';
 import { shadowEdit, shadowGround } from '../../src/effects/shadow-commands';
+import { sanitizeShadowParams } from '../../src/effects/shadow-engine';
 import { spacingNormalize } from '../../src/layout/spacing-commands';
 import { layersOrganize } from '../../src/layers/layer-commands';
 import { computeGrid } from '../../src/guides/grid-engine';
@@ -65,20 +66,21 @@ describe('vertical slice (simulated Illustrator)', () => {
     res = await runner.run(shadowGround, shadowGround.defaultParams({ settings, presets }));
     expect(res.committed).toBe(true);
     const heroIdx = layer1._items.findIndex((i) => i._name === 'hero');
-    const shadow = layer1._items[heroIdx + 1] as MockPathItem;
+    const shadow = layer1._items[heroIdx + 1] as MockGroupItem;
     expect(shadow.name).toBe('SHADOW — Ground — hero');
-    expect(shadow.blendingMode).toBe('MULTIPLY');
-    expect(shadow.opacity).toBe(26);
-    expect(shadow.shape.kind).toBe('ellipse');
-    const g = (shadow.fillColor as GradientColor).gradient!;
+    // Studio ground shadow: contact over core over ambient, all Multiply radial falloffs.
+    expect(shadow._items.map((i) => i._name)).toEqual(['Contact', 'Core', 'Ambient']);
+    const contact = shadow._items[0] as MockPathItem;
+    expect(contact.blendingMode).toBe('MULTIPLY');
+    expect(contact.shape.kind).toBe('ellipse');
+    const g = (contact.fillColor as GradientColor).gradient!;
     expect(g.type).toBe('RADIAL');
     expect(g._stops[0]!.opacity).toBe(100);
     expect(g._stops[g._stops.length - 1]!.opacity).toBe(0);
-    // Ellipse centred under the hero's bottom edge (y = 1160 design → -1160 AI).
-    const sh = shadow.shape as { cx: number; cy: number; rx: number; ry: number };
-    expect(sh.cx).toBeCloseTo(540, 3);
-    expect(sh.cy).toBeCloseTo(-1160, 3);
-    expect(sh.rx * 2).toBeCloseTo(300 * 0.95, 3);
+    // Contact centred under the hero's bottom edge (y = 1160 design → -1160 AI).
+    const sh = contact.shape as { cx: number; cy: number; rx: number; ry: number };
+    expect(Math.abs(sh.cx - 540)).toBeLessThan(10);
+    expect(Math.abs(sh.cy + 1160)).toBeLessThan(10);
     // Subject got a persistent id; shadow points at it.
     const hero = layer1._items[heroIdx]!;
     const heroId = hero._tags.find((t) => t.name === 'AF_id')!.value;
@@ -119,16 +121,16 @@ describe('vertical slice (simulated Illustrator)', () => {
     const s2 = await adapter.document.snapshot();
     const item = s2.selection.items[0]!;
     expect(item.af?.type).toBe('groundShadow');
-    expect(item.af?.params?.['widthScale']).toBe(0.95);
+    expect(item.af?.params?.['style']).toBe('ground');
 
-    // "Edit existing effect": rebuild with new opacity, keeps stacking slot and id.
+    // "Edit existing effect": rebuild with new settings, keeps stacking slot and id.
     const oldId = item.af!.id;
-    res = await runner.run(shadowEdit, { params: { ...(item.af!.params as object), opacity: 40 }, refit: true });
+    res = await runner.run(shadowEdit, { params: sanitizeShadowParams({ ...(item.af!.params as object), strength: 40 }) });
     expect(res.committed).toBe(true);
     const subj2 = reopened._layers.find((l) => l.name === '05 — SUBJECT')!;
     expect(subj2._items.map((i) => i._name)).toEqual(['hero', 'SHADOW — Ground — hero']);
     const edited = subj2._items[1]!;
-    expect(edited.opacity).toBe(40);
+    expect(JSON.parse(edited._tags.find((t) => t.name === 'AF_params')!.value).strength).toBe(40);
     expect(edited._tags.find((t) => t.name === 'AF_id')!.value).toBe(oldId);
     expect(allLayerItems(reopened._layers).filter((i) => i._name.startsWith('SHADOW')).length).toBe(1);
   });
@@ -141,7 +143,9 @@ describe('vertical slice (simulated Illustrator)', () => {
     selectByName(doc, 'hero');
     const before = doc.pageItems.length;
     await runner.run(shadowGround, shadowGround.defaultParams({ settings, presets }));
-    expect(doc.pageItems.length).toBe(before + 1);
+    // One shadow group (with its layered ellipses) was added.
+    expect(doc._layers[0]!._items.filter((i) => i._name.startsWith('SHADOW'))).toHaveLength(1);
+    expect(doc.pageItems.length).toBeGreaterThan(before);
     runtime.evalScript('app.undo()');
     const after = runtime.app.activeDocument;
     expect(after.pageItems.length).toBe(before);

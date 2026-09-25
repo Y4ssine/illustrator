@@ -35,6 +35,15 @@ export interface TaggedScan {
   previewLeftovers: number;
 }
 
+export interface ColorSampling {
+  samples: Array<{ hex: string; weight: number }>;
+  items: number;
+  /** Placed/embedded images in the selection (cannot be sampled from a script). */
+  images: number;
+  other: number;
+  truncated: boolean;
+}
+
 export interface DocumentAdapter {
   snapshot(opts?: { maxItems?: number }): Promise<DocumentSnapshot>;
   /** Cheap string that changes when the document/selection changes. */
@@ -43,6 +52,8 @@ export interface DocumentAdapter {
   scanTagged(opts?: { limit?: number }): Promise<TaggedScan>;
   /** Find the item carrying AF_id == id, searching near `near` first. */
   findByAfId(id: string, near?: Ref): Promise<ItemDescriptor | null>;
+  /** Colours painted by the selected artwork, weighted by area (vector art only). */
+  sampleColors(opts?: { limit?: number }): Promise<ColorSampling>;
 }
 
 export interface SelectionAdapter {
@@ -160,6 +171,8 @@ export interface HostTransaction {
   readonly meta: MetaAdapter;
   readonly artboards: ArtboardAdapter;
   selectRefs(refs: Ref[]): void;
+  /** Record any op and get a reference to its result. */
+  push(op: HostOp): OpRef;
   /** Append pre-built ops (from an engine). Returns the index of the first appended op. */
   append(ops: HostOp[]): number;
   readonly ops: readonly HostOp[];

@@ -32,6 +32,9 @@ AFHost.call = function (method, payload) {
       case 'findByAfId':
         out = { ok: true, value: Q.findByAfId(p) };
         break;
+      case 'colors':
+        out = { ok: true, value: Q.colors(p) };
+        break;
       case 'run':
         out = R.run(p, false);
         break;

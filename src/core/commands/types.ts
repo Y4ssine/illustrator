@@ -15,10 +15,14 @@ import type { Settings } from '../settings';
 import type { DocumentSnapshot } from '../snapshot';
 import type { PresetStore } from '../../presets/store';
 
-export type CommandCategory = 'artboards' | 'grid' | 'guides' | 'align' | 'shadow' | 'layers' | 'document' | 'app';
+export type CommandCategory = 'artboards' | 'grid' | 'guides' | 'align' | 'shadow' | 'light' | 'color' | 'create' | 'info' | 'layers' | 'document' | 'app';
 
 export const CATEGORY_LABEL: Record<CommandCategory, string> = {
   artboards: 'Artboards',
+  light: 'Light & Blend',
+  color: 'Colour',
+  create: 'Create',
+  info: 'Infographic',
   grid: 'Grid',
   guides: 'Guides',
   align: 'Spacing & Align',
@@ -57,6 +61,8 @@ export interface CommandResult {
   committed: boolean;
 }
 
+export type ViewId = 'home' | 'create' | 'light' | 'shadow' | 'color' | 'info' | 'grid' | 'align' | 'layers' | 'presets' | 'settings';
+
 interface CommandBase<P> {
   id: string;
   title: string;
@@ -64,7 +70,7 @@ interface CommandBase<P> {
   keywords: readonly string[];
   description: string;
   /** Tab the command's detailed controls live on. */
-  view?: 'home' | 'grid' | 'align' | 'shadow' | 'layers' | 'presets' | 'settings';
+  view?: ViewId;
   defaultParams(ctx: { settings: Settings; presets: PresetStore }): P;
 }
 

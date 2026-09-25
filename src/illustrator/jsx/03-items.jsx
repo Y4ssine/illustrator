@@ -142,8 +142,9 @@ AFHost.items = (function () {
     return 9999;
   }
 
+  // Every generated shadow type ends in "Shadow" (groundShadow, castShadow, ...).
   function isShadowType(t) {
-    return t === 'groundShadow' || t === 'contactShadow' || t === 'contactAmbientShadow';
+    return !!t && /Shadow$/.test(t);
   }
 
   function sameContainer(a, b) {

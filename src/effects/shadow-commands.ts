@@ -1,19 +1,19 @@
 /**
- * Shadow commands: Ground, Contact, Contact + Ambient, and Edit Existing.
+ * Shadow commands (v2): create any shadow style, quick one-style commands for
+ * the palette, and Edit Selected Shadow (also upgrades shadows made by v1).
  */
 
-import type { DocumentCommand, PlanContext, CommandPlan } from '../core/commands/types';
+import type { CommandPlan, DocumentCommand, PlanContext } from '../core/commands/types';
 import { activeTemplate, itemBounds, requireDoc, roleLayerName, subjectItems, subjectLabel } from '../core/commands/helpers';
 import { AFError } from '../core/errors';
+import type { HostTransaction } from '../core/host';
 import type { Place } from '../core/protocol';
-import type { DocumentSnapshot, ItemDescriptor } from '../core/snapshot';
+import type { DocumentInfo, DocumentSnapshot, ItemDescriptor } from '../core/snapshot';
+import type { Settings } from '../core/settings';
 import { encodeMeta, isShadowType, type AfType } from '../core/tags';
 import { center, type Rect } from '../geometry/rect';
 import { makeId, plural } from '../utils/misc';
-import { buildShadowOps, ellipseFor, sanitizeShadowParams, SHADOW_KIND_LABEL, type ShadowKind, type ShadowParams } from './shadow-engine';
-
-const TYPE_FOR: Record<ShadowKind, AfType> = { ground: 'groundShadow', contact: 'contactShadow', contactAmbient: 'contactAmbientShadow' };
-const KIND_FOR: Partial<Record<AfType, ShadowKind>> = { groundShadow: 'ground', contactShadow: 'contact', contactAmbientShadow: 'contactAmbient' };
+import { buildShadow, canSilhouette, sanitizeShadowParams, SHADOW_AF_TYPE, SHADOW_STYLE_LABEL, type ShadowParams, type ShadowStyle } from './shadow-engine';
 
 export interface ShadowCommandParams {
   presetId: string | null;
@@ -26,7 +26,7 @@ interface StoredShadowParams extends ShadowParams {
   subjectRect: Rect;
 }
 
-function placementFor(ctx: PlanContext, subject: ItemDescriptor, tx: ReturnType<PlanContext['host']['begin']>, createdLayers: Set<string>, warnings: string[]): Place {
+function placementFor(ctx: PlanContext, subject: ItemDescriptor, tx: HostTransaction, createdLayers: Set<string>, warnings: string[]): Place {
   if (ctx.settings.shadowPlacement === 'belowSubject') return { k: 'below', ref: subject.ref };
   const doc = ctx.snapshot.doc!;
   const template = activeTemplate(ctx.settings, ctx.presets);
@@ -46,84 +46,120 @@ function placementFor(ctx: PlanContext, subject: ItemDescriptor, tx: ReturnType<
   return { k: 'layer', name, at: 'top' };
 }
 
-function shadowCommand(kind: ShadowKind): DocumentCommand<ShadowCommandParams> {
-  const label = SHADOW_KIND_LABEL[kind];
-  return {
-    kind: 'document',
-    id: `shadow.${kind}`,
-    title: `Add ${label} Shadow`,
-    category: 'shadow',
-    view: 'shadow',
-    supportsPreview: true,
-    keywords: ['shadow', label.toLowerCase(), 'ground', 'drop', 'floor', 'contact', 'ambient', 'grounding', 'ظل'],
-    description:
-      kind === 'ground'
-        ? 'Soft elliptical shadow under the selected object(s), placed directly below each one.'
-        : kind === 'contact'
-          ? 'Tight, darker shadow where the subject meets the ground (feet, bottles, products).'
-          : 'Contact shadow plus a wide ambient pool, grouped as one editable shadow.',
-    defaultParams: ({ settings, presets }) => {
-      const preset = presets.get('shadow', settings.shadowPreset);
-      const params = preset && preset.params.kind === kind ? preset.params : sanitizeShadowParams({ kind });
-      return { presetId: preset && preset.params.kind === kind ? preset.id : null, params };
-    },
-    validate(snapshot) {
-      const d = requireDoc(snapshot);
-      if (d) return d;
-      if (subjectItems(snapshot).length === 0) {
-        return snapshot.selection.count > 0
-          ? `${label} Shadow needs an object to shadow — the selection only contains guides or plugin-generated items.`
-          : `${label} Shadow requires at least one selected object.`;
-      }
-      return null;
-    },
-    async plan(ctx, p) {
-      const params = sanitizeShadowParams({ ...p.params, kind });
-      const subjects = subjectItems(ctx.snapshot);
-      const tx = ctx.host.begin(`${label} Shadow`);
-      const warnings: string[] = [];
-      const created = new Set<string>();
-      for (const s of subjects) {
-        if (s.hidden) warnings.push(`“${subjectLabel(s)}” is hidden; its shadow is created anyway.`);
-        const subjectId = s.af?.id ?? makeId();
-        if (!s.af?.id) tx.meta.tag(s.ref, encodeMeta({ type: 'subject', id: subjectId }));
-        const rect = itemBounds(s, ctx.settings);
-        const stored: StoredShadowParams = { ...params, presetId: p.presetId, subjectRect: rect };
-        const tags = encodeMeta({ type: TYPE_FOR[kind], id: makeId(), source: subjectId, params: stored as unknown as Record<string, unknown> });
-        const place = placementFor(ctx, s, tx, created, warnings);
-        const built = buildShadowOps({ subject: rect, subjectName: subjectLabel(s), params, place, tags, preview: false }, tx.ops.length);
-        tx.append(built.ops);
-      }
-      if (params.liveBlur > 0 && !ctx.host.info?.capabilities.applyEffect) {
-        warnings.push('Live blur is not available in this Illustrator version; the vector falloff is used instead.');
-      }
-      return {
-        batch: tx.toBatch(),
-        summary: `${label} shadow added to ${plural(subjects.length, 'object')}.`,
-        warnings,
-      };
-    },
+export function artboardOf(doc: DocumentInfo, r: Rect): Rect | null {
+  const c = center(r);
+  const hit = doc.artboards.find((a) => c.x >= a.rect.x && c.x <= a.rect.x + a.rect.w && c.y >= a.rect.y && c.y <= a.rect.y + a.rect.h);
+  return hit?.rect ?? null;
+}
+
+function blurAllowed(ctx: PlanContext, params: ShadowParams): boolean {
+  return params.blur && ctx.settings.liveBlur && !!ctx.host.info?.capabilities.applyEffect;
+}
+
+function presetParams(settings: Settings, presets: PlanContext['presets'], style?: ShadowStyle): ShadowCommandParams {
+  const preset = presets.get('shadow', settings.shadowPreset);
+  const base = sanitizeShadowParams(preset?.params ?? {});
+  const rig = settings.lightRig;
+  const params = sanitizeShadowParams({ ...base, ...(style ? { style } : {}), lightAngle: rig.angle, elevation: rig.elevation });
+  return { presetId: preset?.id ?? null, params };
+}
+
+function planCreate(label: string) {
+  return async (ctx: PlanContext, p: ShadowCommandParams): Promise<CommandPlan> => {
+    const params = sanitizeShadowParams(p.params);
+    const subjects = subjectItems(ctx.snapshot);
+    const tx = ctx.host.begin(label);
+    const warnings: string[] = [];
+    const created = new Set<string>();
+    const blurOk = blurAllowed(ctx, params);
+    for (const s of subjects) {
+      if (s.hidden) warnings.push(`“${subjectLabel(s)}” is hidden; its shadow is created anyway.`);
+      const subjectId = s.af?.id ?? makeId();
+      if (!s.af?.id) tx.meta.tag(s.ref, encodeMeta({ type: 'subject', id: subjectId }));
+      const rect = itemBounds(s, ctx.settings);
+      const stored: StoredShadowParams = { ...params, presetId: p.presetId, subjectRect: rect };
+      const tags = encodeMeta({ type: SHADOW_AF_TYPE[params.style], id: makeId(), source: subjectId, params: stored as unknown as Record<string, unknown> });
+      const place = placementFor(ctx, s, tx, created, warnings);
+      const res = buildShadow({
+        sink: tx,
+        subject: { rect, ref: s.ref, kind: s.kind, name: subjectLabel(s) },
+        params,
+        place,
+        tags,
+        blurOk,
+        artboard: artboardOf(ctx.snapshot.doc!, rect),
+      });
+      for (const n of res.notes) if (!warnings.includes(n)) warnings.push(n);
+    }
+    if (params.blur && !blurOk && ctx.settings.liveBlur && !ctx.host.info?.capabilities.applyEffect) {
+      warnings.push('Live blur is not available in this Illustrator version; the vector falloff is used instead.');
+    }
+    return {
+      batch: tx.toBatch(),
+      summary: `${SHADOW_STYLE_LABEL[params.style]} shadow added to ${plural(subjects.length, 'object')}.`,
+      warnings,
+    };
   };
 }
 
-export const shadowGround = shadowCommand('ground');
-export const shadowContact = shadowCommand('contact');
-export const shadowContactAmbient = shadowCommand('contactAmbient');
+function validateSubjects(snapshot: DocumentSnapshot): string | null {
+  const d = requireDoc(snapshot);
+  if (d) return d;
+  if (subjectItems(snapshot).length === 0) {
+    return snapshot.selection.count > 0 ? 'Shadows need an object to shadow — the selection only contains guides or plugin-generated items.' : 'Select the object(s) that need a shadow.';
+  }
+  return null;
+}
+
+export const shadowCreate: DocumentCommand<ShadowCommandParams> = {
+  kind: 'document',
+  id: 'shadow.create',
+  title: 'Add Shadow',
+  category: 'shadow',
+  view: 'shadow',
+  supportsPreview: true,
+  keywords: ['shadow', 'ground', 'drop', 'floor', 'contact', 'cast', 'light', 'studio', 'ظل'],
+  description: 'Add a realistic shadow (studio ground, cast, silhouette, floating or long) below the selected objects.',
+  defaultParams: ({ settings, presets }) => presetParams(settings, presets),
+  validate: validateSubjects,
+  plan: planCreate('Add Shadow'),
+};
+
+function quick(style: ShadowStyle, title: string, description: string, keywords: string[]): DocumentCommand<ShadowCommandParams> {
+  return {
+    kind: 'document',
+    id: `shadow.${style}`,
+    title,
+    category: 'shadow',
+    view: 'shadow',
+    supportsPreview: true,
+    keywords: ['shadow', 'ظل', ...keywords],
+    description,
+    defaultParams: ({ settings, presets }) => presetParams(settings, presets, style),
+    validate: validateSubjects,
+    plan: planCreate(title),
+  };
+}
+
+export const shadowGround = quick('ground', 'Add Studio Ground Shadow', 'Layered contact + core + ambient pool under each selected object.', ['ground', 'floor', 'studio', 'product', 'pool']);
+export const shadowContact = quick('contact', 'Add Contact Shadow', 'Tight dark line where the object meets the ground.', ['contact', 'grounding', 'feet']);
+export const shadowCast = quick('cast', 'Add Cast Shadow', 'Perspective shadow thrown by the scene light (length from the light elevation).', ['cast', 'sun', 'perspective', 'long', 'golden hour']);
+export const shadowSilhouette = quick('silhouette', 'Add Silhouette Shadow', 'Projects a copy of the vector artwork or live text onto the floor.', ['silhouette', 'projected', 'logo', 'text', 'type']);
+export const shadowFloating = quick('floating', 'Add Floating Shadow', 'Elevation shadow for cards/buttons, or a floor pool under a hovering product.', ['floating', 'elevation', 'card', 'ui', 'hover', 'drop']);
+export const shadowLong = quick('long', 'Add Long Shadow', 'Flat-design long shadow, clipped to the artboard.', ['long', 'flat', 'icon', '45']);
 
 export function selectedShadows(snapshot: DocumentSnapshot): ItemDescriptor[] {
   return snapshot.selection.items.filter((i) => isShadowType(i.af?.type ?? null));
 }
 
-export function shadowKindOf(item: ItemDescriptor): ShadowKind | null {
-  return item.af?.type ? (KIND_FOR[item.af.type] ?? null) : null;
-}
+const V1_STYLE: Partial<Record<AfType, ShadowStyle>> = { groundShadow: 'ground', contactAmbientShadow: 'ground', contactShadow: 'contact' };
 
-/** Parameters stored on an existing shadow, sanitised. */
+/** Parameters stored on an existing shadow (v2, or v1 upgraded), sanitised. */
 export function storedShadowParams(item: ItemDescriptor): (ShadowParams & { presetId: string | null; subjectRect: Rect | null }) | null {
-  const kind = shadowKindOf(item);
-  if (!kind || !item.af) return null;
-  const raw = (item.af.params ?? {}) as Partial<StoredShadowParams>;
-  const params = sanitizeShadowParams({ ...raw, kind });
+  if (!item.af?.type || !isShadowType(item.af.type)) return null;
+  const raw = (item.af.params ?? {}) as Partial<StoredShadowParams> & { kind?: string; opacity?: number };
+  const upgraded: Partial<ShadowParams> = raw.style ? raw : { style: V1_STYLE[item.af.type] ?? 'ground', strength: typeof raw.opacity === 'number' ? Math.min(100, raw.opacity * 1.6) : undefined, color: raw.color };
+  const params = sanitizeShadowParams(upgraded);
   const sr = raw.subjectRect;
   const subjectRect = sr && typeof sr.x === 'number' && typeof sr.w === 'number' ? sr : null;
   return { ...params, presetId: typeof raw.presetId === 'string' ? raw.presetId : null, subjectRect };
@@ -131,8 +167,6 @@ export function storedShadowParams(item: ItemDescriptor): (ShadowParams & { pres
 
 export interface EditShadowParams {
   params: ShadowParams;
-  /** Recompute position from the subject's current bounds (otherwise keep the shadow where it is now). */
-  refit: boolean;
 }
 
 export const shadowEdit: DocumentCommand<EditShadowParams> = {
@@ -142,10 +176,10 @@ export const shadowEdit: DocumentCommand<EditShadowParams> = {
   category: 'shadow',
   view: 'shadow',
   supportsPreview: false,
-  keywords: ['edit', 'shadow', 'update', 'refit', 'regenerate'],
+  keywords: ['edit', 'shadow', 'update', 'refit', 'regenerate', 'upgrade'],
   // No live preview: editing replaces existing artwork, which a preview could not always restore exactly.
-  description: 'Rebuild the selected Artboard Forge shadow(s) with new settings, keeping their stacking position.',
-  defaultParams: () => ({ params: sanitizeShadowParams({ kind: 'ground' }), refit: false }),
+  description: 'Rebuild the selected Artboard Forge shadow(s) with new settings, fitted to the subject’s current position.',
+  defaultParams: () => ({ params: sanitizeShadowParams({}) }),
   validate(snapshot) {
     const d = requireDoc(snapshot);
     if (d) return d;
@@ -156,43 +190,39 @@ export const shadowEdit: DocumentCommand<EditShadowParams> = {
     const shadows = selectedShadows(ctx.snapshot);
     const tx = ctx.host.begin('Edit Shadow');
     const warnings: string[] = [];
+    const params = sanitizeShadowParams(p.params);
+    const blurOk = blurAllowed(ctx, params);
     for (const sh of shadows) {
-      const kind = shadowKindOf(sh)!;
       const stored = storedShadowParams(sh);
-      const params = sanitizeShadowParams({ ...p.params, kind: p.params.kind ?? kind });
-      const newKind = params.kind;
-      let subjectRect: Rect | null = null;
-      let subjectName = sh.name.split(' — ').slice(2).join(' — ') || 'Object';
+      let subject: ItemDescriptor | null = null;
       if (sh.af?.source) {
-        const subject = await ctx.host.document.findByAfId(sh.af.source, sh.ref);
-        if (subject) {
-          subjectRect = itemBounds(subject, ctx.settings);
-          subjectName = subjectLabel(subject);
-        } else {
-          warnings.push(`The subject of “${sh.name}” was not found; the stored size is used.`);
-        }
+        subject = await ctx.host.document.findByAfId(sh.af.source, sh.ref);
+        if (!subject) warnings.push(`The subject of “${sh.name}” was not found; the stored size is used.`);
       }
-      subjectRect = subjectRect ?? stored?.subjectRect ?? null;
-      if (!subjectRect) throw new AFError('NO_SUBJECT', `“${sh.name}” has no stored subject size and its subject is missing.`);
-      let rect = subjectRect;
-      if (!p.refit) {
-        // Keep the shadow where the designer left it: shift the subject rect so the new ellipse is centred on the current shadow.
-        const expected = ellipseFor(subjectRect, params, params);
-        const cur = center(sh.visible);
-        rect = { ...subjectRect, x: subjectRect.x + (cur.x - expected.cx), y: subjectRect.y + (cur.y - expected.cy) };
+      const rect = subject ? itemBounds(subject, ctx.settings) : (stored?.subjectRect ?? null);
+      if (!rect) throw new AFError('NO_SUBJECT', `“${sh.name}” has no stored subject size and its subject is missing.`);
+      let style = params.style;
+      if (!subject && (style === 'silhouette' || (style === 'floating' && params.floatMode === 'card'))) {
+        warnings.push('The subject is missing, so its artwork cannot be copied; a shape-based shadow was used.');
       }
-      const storedNext: StoredShadowParams = { ...params, presetId: stored?.presetId ?? null, subjectRect };
-      const tags = encodeMeta({
-        type: TYPE_FOR[newKind],
-        id: sh.af?.id ?? makeId(),
-        source: sh.af?.source ?? null,
-        params: storedNext as unknown as Record<string, unknown>,
+      if (subject && style === 'silhouette' && !canSilhouette(subject.kind)) style = 'cast';
+      const final = { ...params, style };
+      const storedNext: StoredShadowParams = { ...final, presetId: stored?.presetId ?? null, subjectRect: rect };
+      const tags = encodeMeta({ type: SHADOW_AF_TYPE[style], id: sh.af?.id ?? makeId(), source: sh.af?.source ?? null, params: storedNext as unknown as Record<string, unknown> });
+      const res = buildShadow({
+        sink: tx,
+        // Without the subject, silhouette/card styles fall back to shapes (kind 'placed' = not copyable).
+        subject: { rect, ref: subject?.ref ?? sh.ref, kind: subject?.kind ?? 'placed', name: subject ? subjectLabel(subject) : sh.name.split(' — ').slice(2).join(' — ') || 'Object' },
+        params: final,
+        place: { k: 'replace', ref: sh.ref },
+        tags,
+        blurOk,
+        artboard: artboardOf(ctx.snapshot.doc!, rect),
       });
-      const built = buildShadowOps({ subject: rect, subjectName, params, place: { k: 'replace', ref: sh.ref }, tags, preview: false }, tx.ops.length);
-      tx.append(built.ops);
+      for (const n of res.notes) if (!warnings.includes(n)) warnings.push(n);
     }
     return { batch: tx.toBatch({ keepSelection: false }), summary: `Updated ${plural(shadows.length, 'shadow')}.`, warnings };
   },
 };
 
-export const SHADOW_COMMANDS = [shadowGround, shadowContact, shadowContactAmbient, shadowEdit];
+export const SHADOW_COMMANDS = [shadowCreate, shadowGround, shadowContact, shadowCast, shadowSilhouette, shadowFloating, shadowLong, shadowEdit];

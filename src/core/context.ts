@@ -28,14 +28,14 @@ export interface SelectionContext {
 
 const SUGGEST: Record<ContextKind, string[]> = {
   noDocument: ['setup.wizard', 'artboard.ig-portrait', 'artboard.ig-story', 'artboard.ig-square'],
-  none: ['grid.build', 'artboard.ig-portrait', 'guides.safeZone', 'layers.organize', 'document.scan'],
+  none: ['recipe.build', 'color.background', 'info.statCards', 'grid.build', 'artboard.ig-portrait', 'layers.organize'],
   textEditing: [],
-  text: ['guides.quick', 'spacing.normalize', 'layers.organize', 'shadow.ground'],
-  image: ['shadow.ground', 'shadow.contactAmbient', 'grid.buildFromSelection', 'layers.organize'],
-  path: ['shadow.ground', 'grid.buildFromSelection', 'guides.quick', 'guides.offset'],
-  group: ['shadow.ground', 'shadow.contactAmbient', 'grid.buildFromSelection', 'guides.quick'],
+  text: ['light.effect', 'shadow.silhouette', 'color.apply', 'spacing.normalize', 'guides.quick'],
+  image: ['light.scene', 'shadow.create', 'color.fade', 'shadow.cast', 'grid.buildFromSelection', 'layers.organize'],
+  path: ['color.apply', 'light.scene', 'shadow.create', 'grid.buildFromSelection', 'guides.offset'],
+  group: ['light.scene', 'shadow.create', 'color.apply', 'grid.buildFromSelection', 'guides.quick'],
   afItem: ['shadow.edit', 'layers.organize'],
-  multiple: ['spacing.normalize', 'spacing.distribute', 'spacing.matchSmallest', 'layers.organize', 'shadow.ground'],
+  multiple: ['spacing.normalize', 'spacing.distribute', 'light.scene', 'shadow.create', 'layers.organize'],
 };
 
 export function classifySelection(snap: DocumentSnapshot): SelectionContext {

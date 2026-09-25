@@ -20,7 +20,17 @@ AFHost.ops = (function () {
     'item.tag': true,
     'item.appearance': true,
     'item.effect': true,
-    'selection.set': true
+    'selection.set': true,
+    // Creative ops (21-ops-creative.jsx). Those that modify an item only touch
+    // items created by the same preview batch; anything else is skipped.
+    'shape.path': true,
+    'text.point': true,
+    'text.area': true,
+    'item.duplicate': true,
+    'item.restyle': true,
+    'item.transform': true,
+    'item.rotate': true,
+    'group.clip': true
   };
 
   // ---- reference resolution -------------------------------------------------
@@ -292,30 +302,75 @@ AFHost.ops = (function () {
     }
   }
 
-  function applyFill(ctx, item, fill) {
+  function paintColor(ctx, fill) {
     var gc;
-    if (!fill || fill.t === 'none') {
-      item.filled = false;
-      return;
-    }
-    item.filled = true;
     if (fill.t === 'solid') {
-      item.fillColor = U.color(ctx.doc, fill.c);
-      return;
+      return U.color(ctx.doc, fill.c);
     }
     gc = new GradientColor();
     gc.gradient = gradientFor(ctx, fill);
-    item.fillColor = gc;
+    return gc;
   }
 
-  function applyStyle(ctx, item, op) {
-    applyFill(ctx, item, op.fill);
-    if (op.stroke) {
-      item.stroked = true;
-      item.strokeColor = U.color(ctx.doc, op.stroke.c);
-      item.strokeWidth = op.stroke.w;
+  // `target` receives the paint (for a compound path: its first sub-path);
+  // `item` is the object whose bounds the gradient is fitted to.
+  function applyFill(ctx, item, fill, target) {
+    var t = target || item;
+    if (!fill || fill.t === 'none') {
+      t.filled = false;
+      return;
+    }
+    t.filled = true;
+    t.fillColor = paintColor(ctx, fill);
+  }
+
+  // GradientColor.angle cannot be set from a script (long-standing Illustrator
+  // bug), so the gradient alone is rotated with rotate(..., changePositions =
+  // false, ..., changeFillGradients = true) and then scaled so it spans the
+  // object along the new direction. Radial fills with fit = 'ellipse' are
+  // scaled the same way to get an elliptical falloff.
+  function fitGradient(item, fill) {
+    var b;
+    var w;
+    var h;
+    var a;
+    var k;
+    if (!fill || (fill.t !== 'linear' && fill.t !== 'radial')) {
+      return;
+    }
+    b = item.geometricBounds;
+    w = b[2] - b[0];
+    h = b[1] - b[3];
+    if (w <= 0.001 || h <= 0.001) {
+      return;
+    }
+    if (fill.t === 'linear' && fill.angle) {
+      a = (fill.angle * Math.PI) / 180;
+      k = (Math.abs(w * Math.cos(a)) + Math.abs(h * Math.sin(a))) / w;
+      item.rotate(fill.angle, false, false, true, false, Transformation.CENTER);
+      if (Math.abs(k - 1) > 0.001) {
+        item.resize(k * 100, k * 100, false, false, true, false, 100, Transformation.CENTER);
+      }
+    } else if (fill.t === 'radial' && fill.fit === 'ellipse' && Math.abs(h - w) > 0.001) {
+      item.resize(100, (h / w) * 100, false, false, true, false, 100, Transformation.CENTER);
+    }
+  }
+
+  function applyStroke(ctx, t, stroke) {
+    if (stroke) {
+      t.stroked = true;
+      t.strokeColor = U.color(ctx.doc, stroke.c);
+      t.strokeWidth = stroke.w;
     } else {
-      item.stroked = false;
+      t.stroked = false;
+    }
+  }
+
+  function applyStyle(ctx, item, op, skipFit) {
+    applyFill(ctx, item, op.fill);
+    applyStroke(ctx, item, op.stroke);
+    if (!skipFit) {
+      fitGradient(item, op.fill);
     }
     finishItem(ctx, item, op);
   }
@@ -498,7 +553,7 @@ AFHost.ops = (function () {
     var item = c.pathItems.ellipse(-(op.cy - h0 / 2), op.cx - op.w / 2, op.w, h0);
     ctx.journal.push(removeFn(item));
     position(ctx, item, op.into);
-    applyStyle(ctx, item, op);
+    applyStyle(ctx, item, op, radial);
     if (radial && Math.abs(op.h - op.w) > 0.001) {
       item.resize(100, (op.h / op.w) * 100, true, true, true, true, 100, Transformation.CENTER);
     }
@@ -775,5 +830,23 @@ AFHost.ops = (function () {
     return { count: count };
   };
 
-  return { handlers: H, resolve: resolve, resolveStandalone: resolveStandalone, restoreLayers: restoreLayers, PREVIEWABLE: PREVIEWABLE };
+  // Internals shared with 21-ops-creative.jsx.
+  var lib = {
+    resolve: resolve,
+    containerFor: containerFor,
+    position: position,
+    editable: editable,
+    topLayerOf: topLayerOf,
+    produce: produce,
+    isCreated: isCreated,
+    removeFn: removeFn,
+    restorePropFn: restorePropFn,
+    paintColor: paintColor,
+    applyFill: applyFill,
+    applyStroke: applyStroke,
+    fitGradient: fitGradient,
+    finishItem: finishItem
+  };
+
+  return { handlers: H, lib: lib, resolve: resolve, resolveStandalone: resolveStandalone, restoreLayers: restoreLayers, PREVIEWABLE: PREVIEWABLE };
 }());

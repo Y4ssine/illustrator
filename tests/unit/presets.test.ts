@@ -70,13 +70,13 @@ describe('PresetStore', () => {
     const store = new PresetStore(storage);
     await store.loadAll(PRESET_KINDS);
     const builtinCount = store.list('shadow').length;
-    const dup = await store.duplicate('shadow', 'soft-social');
-    expect(dup.name).toBe('Soft Social Media copy');
+    const dup = await store.duplicate('shadow', 'studio-product');
+    expect(dup.name).toBe('Studio product copy');
     expect(store.list('shadow')).toHaveLength(builtinCount + 1);
     await store.rename('shadow', dup.id, 'My soft');
     expect(store.get('shadow', dup.id)!.name).toBe('My soft');
-    await expect(store.rename('shadow', 'soft-social', 'x')).rejects.toThrow(/Only your own/);
-    await expect(store.save('shadow', { ...store.get('shadow', 'soft-social')! })).rejects.toThrow(/read-only/);
+    await expect(store.rename('shadow', 'studio-product', 'x')).rejects.toThrow(/Only your own/);
+    await expect(store.save('shadow', { ...store.get('shadow', 'studio-product')! })).rejects.toThrow(/read-only/);
 
     // Persisted and reloaded by a fresh store.
     const store2 = new PresetStore(storage);
@@ -85,7 +85,7 @@ describe('PresetStore', () => {
 
     await store2.remove('shadow', dup.id);
     expect(store2.get('shadow', dup.id)).toBeUndefined();
-    await expect(store2.remove('shadow', 'soft-social')).rejects.toThrow(/Only your own/);
+    await expect(store2.remove('shadow', 'studio-product')).rejects.toThrow(/Only your own/);
   });
 
   it('imports with conflict handling', async () => {

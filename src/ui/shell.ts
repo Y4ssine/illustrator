@@ -11,6 +11,10 @@ import { ICONS, type IconName } from './icons';
 import { ProgressBar } from './components/layout';
 import { mountPalette } from './palette';
 import { AlignView } from './views/align';
+import { ColorView } from './views/color';
+import { CreateView } from './views/create';
+import { InfoView } from './views/info';
+import { LightView } from './views/light';
 import { GridView } from './views/grid';
 import { HomeView } from './views/home';
 import { LayersView } from './views/layers';
@@ -21,17 +25,21 @@ import type { View } from './views/view';
 
 const TABS: Array<{ id: TabId; icon: IconName; label: string; key: string }> = [
   { id: 'home', icon: 'home', label: 'Home', key: '1' },
-  { id: 'grid', icon: 'grid', label: 'Grid & Guides', key: '2' },
-  { id: 'align', icon: 'align', label: 'Spacing & Align', key: '3' },
-  { id: 'shadow', icon: 'shadow', label: 'Shadow Lab', key: '4' },
-  { id: 'layers', icon: 'layers', label: 'Layers', key: '5' },
-  { id: 'presets', icon: 'presets', label: 'Presets', key: '6' },
+  { id: 'create', icon: 'create', label: 'Create — recipes & shapes', key: '2' },
+  { id: 'light', icon: 'sun', label: 'Light & Blend', key: '3' },
+  { id: 'shadow', icon: 'shadow', label: 'Shadow Studio', key: '4' },
+  { id: 'color', icon: 'palette', label: 'Colour — palette, gradients, fades', key: '5' },
+  { id: 'info', icon: 'chart', label: 'Infographic', key: '6' },
+  { id: 'grid', icon: 'grid', label: 'Grid & Guides', key: '7' },
+  { id: 'align', icon: 'align', label: 'Spacing & Align', key: '8' },
+  { id: 'layers', icon: 'layers', label: 'Layers', key: '9' },
+  { id: 'presets', icon: 'presets', label: 'Presets', key: '0' },
 ];
 
 export function mountShell(env: Omit<AppEnv, 'root'>, root: HTMLElement): AppController {
   root.classList.add('af-root');
   const app = new AppController({ ...env, root });
-  const views: View[] = [HomeView(app), GridView(app), AlignView(app), ShadowView(app), LayersView(app), PresetsView(app), SettingsView(app)];
+  const views: View[] = [HomeView(app), CreateView(app), LightView(app), ShadowView(app), ColorView(app), InfoView(app), GridView(app), AlignView(app), LayersView(app), PresetsView(app), SettingsView(app)];
 
   const railBtn = (id: TabId, icon: IconName, label: string, key?: string): HTMLButtonElement => {
     const b = h('button', { type: 'button', class: 'rail-btn', title: key ? `${label}  (Alt+${key})` : label, 'aria-label': label, dataset: { tab: id } }, svg(ICONS[icon]));
@@ -102,9 +110,9 @@ export function mountShell(env: Omit<AppEnv, 'root'>, root: HTMLElement): AppCon
     } else if (mod && e.shiftKey && e.key.toLowerCase() === 'r') {
       e.preventDefault();
       void app.repeatLast();
-    } else if (e.altKey && /^[1-6]$/.test(e.key)) {
+    } else if (e.altKey && /^[0-9]$/.test(e.key)) {
       e.preventDefault();
-      app.go(TABS[Number(e.key) - 1]!.id);
+      app.go(TABS[(Number(e.key) + 9) % 10]!.id);
     } else if (e.key === 'Escape' && app.s.previewing) {
       void app.cancelPreview();
     } else if (e.key === '/' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {

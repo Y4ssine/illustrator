@@ -2,6 +2,7 @@ import type { Unit } from '../geometry/units';
 import type { BoundsMode } from './snapshot';
 import type { NamingFormat } from '../layers/naming';
 import type { ArtboardMode } from '../layout/artboard-engine';
+import { DEFAULT_RIG, type LightRig } from '../effects/light-engine';
 
 export interface Settings {
   units: Unit;
@@ -27,6 +28,17 @@ export interface Settings {
   favorites: string[];
   /** Recently used command ids, newest first. */
   recent: string[];
+  /** Scene light shared by the Light and Shadow tabs. */
+  lightRig: LightRig;
+  /** Active brand palette (hex), e.g. extracted from a logo. Null = built-in palette. */
+  palette: string[] | null;
+  /** Font candidates (PostScript names) for generated Arabic / Latin text. First installed wins. */
+  fontsArabic: string[];
+  fontsLatin: string[];
+  /** Digits in generated numbers: Western (123) or Arabic-Indic (١٢٣). */
+  digits: 'western' | 'arabic';
+  /** Use Gaussian Blur live effects in lights and shadows. */
+  liveBlur: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -35,7 +47,7 @@ export const DEFAULT_SETTINGS: Settings = {
   direction: 'rtl',
   boundsMode: 'visible',
   spacingPreset: 'sp-8',
-  shadowPreset: 'soft-social',
+  shadowPreset: 'studio-product',
   shadowPlacement: 'belowSubject',
   gridPreset: 'campaign-grid',
   layerTemplate: 'campaign-standard',
@@ -46,8 +58,14 @@ export const DEFAULT_SETTINGS: Settings = {
   artboardMode: 'auto',
   safeMode: true,
   pollInterval: 700,
-  favorites: ['artboard.ig-portrait', 'grid.build', 'shadow.ground', 'spacing.normalize', 'layers.organize'],
+  favorites: ['artboard.ig-portrait', 'grid.build', 'shadow.create', 'light.scene', 'info.statCards'],
   recent: [],
+  lightRig: { ...DEFAULT_RIG },
+  palette: null,
+  fontsArabic: ['Tajawal-Bold', 'Cairo-Bold', 'Almarai-Bold', 'DINNextLTArabic-Bold', 'NotoKufiArabic-Bold', 'MyriadArabic-Bold', 'ArialMT'],
+  fontsLatin: ['Montserrat-Bold', 'Inter-Bold', 'Poppins-Bold', 'MyriadPro-Bold', 'Arial-BoldMT'],
+  digits: 'western',
+  liveBlur: true,
 };
 
 export function mergeSettings(raw: unknown): Settings {
@@ -62,6 +80,11 @@ export function mergeSettings(raw: unknown): Settings {
   }
   if (!Array.isArray(out.favorites)) out.favorites = [...DEFAULT_SETTINGS.favorites];
   if (!Array.isArray(out.recent)) out.recent = [];
+  if (!out.lightRig || typeof out.lightRig.angle !== 'number') out.lightRig = { ...DEFAULT_RIG };
+  else out.lightRig = { ...DEFAULT_RIG, ...out.lightRig };
+  if (out.palette !== null && (!Array.isArray(out.palette) || out.palette.some((c) => typeof c !== 'string'))) out.palette = null;
+  for (const k of ['fontsArabic', 'fontsLatin'] as const) if (!Array.isArray(out[k]) || out[k].length === 0) out[k] = [...DEFAULT_SETTINGS[k]];
+  if (out.digits !== 'arabic') out.digits = 'western';
   out.pollInterval = Math.min(5000, Math.max(300, Number(out.pollInterval) || DEFAULT_SETTINGS.pollInterval));
   return out;
 }

@@ -36,12 +36,12 @@ describe('live preview', () => {
     await runner.preview(shadowGround, p);
     expect(doc.pageItems.some((i) => i._name.startsWith(PREVIEW_NAME_PREFIX))).toBe(true);
     expect(doc._undo).toHaveLength(1);
-    await runner.preview(shadowGround, { ...p, params: { ...p.params, opacity: 55 } });
+    await runner.preview(shadowGround, { ...p, params: { ...p.params, strength: 55 } });
     // The first preview was undone, not deleted: still exactly one undo step.
     expect(doc._undo).toHaveLength(1);
-    const pv = doc.pageItems.filter((i) => i._name.startsWith(PREVIEW_NAME_PREFIX));
+    const pv = doc.pageItems.filter((i) => i._name.startsWith(`${PREVIEW_NAME_PREFIX} \u2014 SHADOW`));
     expect(pv).toHaveLength(1);
-    expect(pv[0]!.opacity).toBe(55);
+    expect(JSON.parse(pv[0]!._tags.find((t) => t.name === 'AF_params')!.value).strength).toBe(55);
     await runner.cancelPreview();
     expect(state(doc)).toBe(original);
     expect(doc._undo).toHaveLength(0);
@@ -224,7 +224,7 @@ describe('degraded capabilities and colour spaces', () => {
     const { runner, doc, presets, settings } = await simWithHero({ supportsStopOpacity: false });
     const res = await runner.run(shadowGround, shadowGround.defaultParams({ settings, presets }));
     expect(res.warnings.join()).toMatch(/fade-to-white/);
-    const shadow = doc.pageItems.find((i) => i._name.startsWith('SHADOW')) as MockPathItem;
+    const shadow = doc.pageItems.find((i) => i._name === 'Contact') as MockPathItem;
     const stops = (shadow.fillColor as GradientColor).gradient!._stops;
     const last = stops[stops.length - 1]!.color as { red: number; green: number; blue: number };
     expect([last.red, last.green, last.blue]).toEqual([255, 255, 255]);
@@ -233,8 +233,9 @@ describe('degraded capabilities and colour spaces', () => {
   it('keeps going (with a warning) when live effects are unsupported', async () => {
     const { runner, doc, presets, settings } = await simWithHero({ supportsApplyEffect: false });
     const p = shadowGround.defaultParams({ settings, presets });
-    const res = await runner.run(shadowGround, { ...p, params: { ...p.params, liveBlur: 6 } });
+    const res = await runner.run(shadowGround, { ...p, params: { ...p.params, blur: true } });
     expect(res.committed).toBe(true);
+    // applyEffect fails on this host: the blur is skipped, the vector falloff remains, the user is told.
     expect(res.warnings.join()).toMatch(/Live effect skipped/);
     expect(doc.pageItems.filter((i) => i._name.startsWith('SHADOW'))).toHaveLength(1);
   });
@@ -242,8 +243,8 @@ describe('degraded capabilities and colour spaces', () => {
   it('applies the live blur when supported', async () => {
     const { runner, doc, presets, settings } = await simWithHero();
     const p = shadowGround.defaultParams({ settings, presets });
-    await runner.run(shadowGround, { ...p, params: { ...p.params, liveBlur: 6 } });
-    const s = doc.pageItems.find((i) => i._name.startsWith('SHADOW'))!;
+    await runner.run(shadowGround, { ...p, params: { ...p.params, blur: true } });
+    const s = doc.pageItems.find((i) => i._name === 'Ambient')!;
     expect(s._effects[0]).toContain('Adobe PSL Gaussian Blur');
   });
 
@@ -253,7 +254,7 @@ describe('degraded capabilities and colour spaces', () => {
     placedItem(doc._layers[0]!, 'bottle', 200, 200, 100, 300);
     selectByName(doc, 'bottle');
     await sim.runner.run(shadowGround, shadowGround.defaultParams({ settings: sim.settings, presets: sim.presets }));
-    const s = doc.pageItems.find((i) => i._name.startsWith('SHADOW')) as MockPathItem;
+    const s = doc.pageItems.find((i) => i._name === 'Contact') as MockPathItem;
     expect((s.fillColor as GradientColor).gradient!._stops[0]!.color).toBeInstanceOf(CMYKColor);
   });
 });

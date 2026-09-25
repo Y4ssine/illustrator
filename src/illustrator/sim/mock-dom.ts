@@ -30,7 +30,10 @@ export const ENUMS = {
     ['NORMAL', 'MULTIPLY', 'SCREEN', 'OVERLAY', 'SOFTLIGHT', 'HARDLIGHT', 'COLORDODGE', 'COLORBURN', 'DARKEN', 'LIGHTEN', 'DIFFERENCE', 'EXCLUSION', 'HUE', 'SATURATIONBLEND', 'COLORBLEND', 'LUMINOSITY'].map((k) => [k, k]),
   ),
   GradientType: { LINEAR: 'LINEAR', RADIAL: 'RADIAL' },
-  Transformation: { CENTER: 'CENTER', DOCUMENTORIGIN: 'DOCUMENTORIGIN', TOPLEFT: 'TOPLEFT', BOTTOM: 'BOTTOM' },
+  Transformation: Object.fromEntries(['DOCUMENTORIGIN', 'TOPLEFT', 'LEFT', 'BOTTOMLEFT', 'TOP', 'CENTER', 'BOTTOM', 'TOPRIGHT', 'RIGHT', 'BOTTOMRIGHT'].map((k) => [k, k])) as Record<string, string>,
+  PointType: { SMOOTH: 'PointType.SMOOTH', CORNER: 'PointType.CORNER' },
+  ParagraphDirectionType: { LEFT_TO_RIGHT_DIRECTION: 'LEFT_TO_RIGHT_DIRECTION', RIGHT_TO_LEFT_DIRECTION: 'RIGHT_TO_LEFT_DIRECTION' },
+  ComposerEngineType: { latinCJKComposer: 'latinCJKComposer', optycaComposer: 'optycaComposer', adornment: 'adornment' },
   CoordinateSystem: { DOCUMENTCOORDINATESYSTEM: 'DOCUMENTCOORDINATESYSTEM', ARTBOARDCOORDINATESYSTEM: 'ARTBOARDCOORDINATESYSTEM' },
   UserInteractionLevel: { DONTDISPLAYALERTS: 'DONTDISPLAYALERTS', DISPLAYALERTS: 'DISPLAYALERTS' },
   DocumentColorSpace: { RGB: 'RGB', CMYK: 'CMYK' },
@@ -41,6 +44,72 @@ export const ENUMS = {
 } as const;
 
 const EP = ENUMS.ElementPlacement;
+
+// ---------------------------------------------------------------------------
+// Affine maths (Illustrator space, Y up): x' = a x + c y + tx, y' = b x + d y + ty
+// ---------------------------------------------------------------------------
+
+export type Aff = [number, number, number, number, number, number];
+export const IDENTITY: Aff = [1, 0, 0, 1, 0, 0];
+
+export function affApply(m: Aff, p: readonly [number, number]): [number, number] {
+  return [m[0] * p[0] + m[2] * p[1] + m[4], m[1] * p[0] + m[3] * p[1] + m[5]];
+}
+
+/** m2 ∘ m1 (apply m1 first). */
+export function affCompose(m2: Aff, m1: Aff): Aff {
+  return [
+    m2[0] * m1[0] + m2[2] * m1[1],
+    m2[1] * m1[0] + m2[3] * m1[1],
+    m2[0] * m1[2] + m2[2] * m1[3],
+    m2[1] * m1[2] + m2[3] * m1[3],
+    m2[0] * m1[4] + m2[2] * m1[5] + m2[4],
+    m2[1] * m1[4] + m2[3] * m1[5] + m2[5],
+  ];
+}
+
+/** Linear part `lin` applied about pivot (px, py). */
+function about(lin: Aff, px: number, py: number): Aff {
+  return affCompose([1, 0, 0, 1, px, py], affCompose([lin[0], lin[1], lin[2], lin[3], 0, 0], [1, 0, 0, 1, -px, -py]));
+}
+
+function pivotOf(b: AIBounds, how: string | undefined): [number, number] {
+  const [l, t, r, bt] = b;
+  const cx = (l + r) / 2;
+  const cy = (t + bt) / 2;
+  switch (how) {
+    case 'DOCUMENTORIGIN':
+      return [0, 0];
+    case 'TOPLEFT':
+      return [l, t];
+    case 'LEFT':
+      return [l, cy];
+    case 'BOTTOMLEFT':
+      return [l, bt];
+    case 'TOP':
+      return [cx, t];
+    case 'BOTTOM':
+      return [cx, bt];
+    case 'TOPRIGHT':
+      return [r, t];
+    case 'RIGHT':
+      return [r, cy];
+    case 'BOTTOMRIGHT':
+      return [r, bt];
+    default:
+      return [cx, cy];
+  }
+}
+
+export class MockMatrix {
+  readonly typename = 'Matrix';
+  mValueA = 1;
+  mValueB = 0;
+  mValueC = 0;
+  mValueD = 1;
+  mValueTX = 0;
+  mValueTY = 0;
+}
 
 // ---------------------------------------------------------------------------
 // Colours & gradients
@@ -230,29 +299,63 @@ export abstract class MockItem {
     const b = this.geometricBounds;
     return b[1] - b[3];
   }
-  abstract _translate(dx: number, dy: number): void;
-  abstract _scale(sx: number, sy: number, cx: number, cy: number): void;
-  abstract _rotate(deg: number, cx: number, cy: number): void;
+  /** Apply an affine (AI space) to the geometry (`pos`) and/or the fill gradient (`grad`). */
+  abstract _affine(m: Aff, pos: boolean, grad: boolean): void;
+
+  _translate(dx: number, dy: number): void {
+    this._affine([1, 0, 0, 1, dx, dy], true, true);
+  }
 
   translate(dx: number, dy: number): void {
     this.check();
     assertEditable(this.parent);
     this._translate(dx, dy);
   }
-  resize(sx: number, sy: number, ..._rest: unknown[]): void {
+  resize(sx: number, sy: number, changePositions = true, _fills = true, changeGradients = true, _strokePattern = true, _lineWidths = 100, scaleAbout?: string): void {
     this.check();
-    const b = this.boundsAI();
-    this._scale(sx / 100, sy / 100, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2);
+    const [px, py] = pivotOf(this.boundsAI(), scaleAbout);
+    this._affine(about([sx / 100, 0, 0, sy / 100, 0, 0], px, py), changePositions !== false, changeGradients !== false);
   }
-  rotate(deg: number, ..._rest: unknown[]): void {
+  rotate(deg: number, changePositions = true, _fills = true, changeGradients = true, _strokePattern = true, rotateAbout?: string): void {
     this.check();
-    const b = this.boundsAI();
-    this._rotate(deg, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2);
+    const t = (deg * Math.PI) / 180;
+    const [px, py] = pivotOf(this.boundsAI(), rotateAbout);
+    this._affine(about([Math.cos(t), Math.sin(t), -Math.sin(t), Math.cos(t), 0, 0], px, py), changePositions !== false, changeGradients !== false);
+  }
+  transform(m: MockMatrix, changePositions = true, _fills = true, changeGradients = true, _strokePattern = true, _lineWidths = 100, transformAbout?: string): void {
+    this.check();
+    const lin: Aff = [m.mValueA, m.mValueB, m.mValueC, m.mValueD, 0, 0];
+    const [px, py] = pivotOf(this.boundsAI(), transformAbout);
+    const full = affCompose([1, 0, 0, 1, m.mValueTX, m.mValueTY], about(lin, px, py));
+    this._affine(full, changePositions !== false, changeGradients !== false);
   }
   applyEffect(xml: string): void {
     this.check();
     if (!this.document.app.supportsApplyEffect) throw new Error('applyEffect is not a function');
     this._effects.push(xml);
+  }
+  duplicate(rel?: MockItem | Container, placement?: string): MockItem {
+    this.check();
+    const hook = this.document.app._cloneHook;
+    if (!hook) throw new Error('duplicate is not available');
+    const copy = hook(this);
+    const target = rel ?? this;
+    const where = placement ?? EP.PLACEBEFORE;
+    let parent: Container;
+    let index: number;
+    if (where === EP.PLACEATBEGINNING || where === EP.PLACEATEND) {
+      parent = target as Container;
+      index = where === EP.PLACEATBEGINNING ? 0 : parent._items.length;
+    } else {
+      const other = target as MockItem;
+      parent = other.parent;
+      const i = parent._items.indexOf(other);
+      index = where === EP.PLACEBEFORE ? i : i + 1;
+    }
+    assertEditable(parent);
+    parent._items.splice(index, 0, copy);
+    copy.parent = parent;
+    return copy;
   }
   move(rel: MockItem | Container, placement: string): this {
     this.check();
@@ -305,21 +408,181 @@ function kill(item: MockItem): void {
   if (item instanceof MockGroupItem || item instanceof MockCompoundPathItem) item._items.forEach(kill);
 }
 
-type Shape =
-  | { kind: 'poly'; pts: Array<[number, number]>; closed: boolean; radius?: number }
-  | { kind: 'ellipse'; cx: number; cy: number; rx: number; ry: number; rot: number };
+/** Bezier point in AI space: anchor, in-handle (leftDirection), out-handle (rightDirection). */
+export interface BezPt {
+  a: [number, number];
+  l: [number, number];
+  r: [number, number];
+  smooth?: boolean;
+}
+
+export type Shape =
+  | { kind: 'poly'; pts: Array<[number, number]>; closed: boolean }
+  | { kind: 'ellipse'; cx: number; cy: number; rx: number; ry: number; rot: number }
+  | { kind: 'bez'; pts: BezPt[]; closed: boolean };
+
+const KAPPA = 0.5522847498;
+
+export function ellipseToBez(s: Extract<Shape, { kind: 'ellipse' }>): Extract<Shape, { kind: 'bez' }> {
+  const t = (s.rot * Math.PI) / 180;
+  const rot = (x: number, y: number): [number, number] => [s.cx + x * Math.cos(t) - y * Math.sin(t), s.cy + x * Math.sin(t) + y * Math.cos(t)];
+  const { rx, ry } = s;
+  const k = KAPPA;
+  // Counter-clockwise from the right-most point (Y up).
+  const raw: Array<[number, number, number, number, number, number]> = [
+    [rx, 0, rx, -ry * k, rx, ry * k],
+    [0, ry, rx * k, ry, -rx * k, ry],
+    [-rx, 0, -rx, ry * k, -rx, -ry * k],
+    [0, -ry, -rx * k, -ry, rx * k, -ry],
+  ];
+  return { kind: 'bez', closed: true, pts: raw.map(([x, y, lx, ly, ox, oy]) => ({ a: rot(x, y), l: rot(lx, ly), r: rot(ox, oy), smooth: true })) };
+}
+
+function roundedRectBez(top: number, left: number, w: number, h: number, rr: number): Extract<Shape, { kind: 'bez' }> {
+  const r = Math.max(0, Math.min(rr, w / 2, h / 2));
+  const k = r * (1 - KAPPA);
+  const L = left;
+  const R = left + w;
+  const T = top;
+  const B = top - h;
+  const P = (ax: number, ay: number, lx: number, ly: number, ox: number, oy: number): BezPt => ({ a: [ax, ay], l: [lx, ly], r: [ox, oy] });
+  return {
+    kind: 'bez',
+    closed: true,
+    pts: [
+      P(L + r, T, L + k, T, L + r, T),
+      P(R - r, T, R - r, T, R - k, T),
+      P(R, T - r, R, T - k, R, T - r),
+      P(R, B + r, R, B + r, R, B + k),
+      P(R - r, B, R - k, B, R - r, B),
+      P(L + r, B, L + r, B, L + k, B),
+      P(L, B + r, L, B + k, L, B + r),
+      P(L, T - r, L, T - r, L, T - k),
+    ],
+  };
+}
+
+function cubicAt(p0: number, p1: number, p2: number, p3: number, t: number): number {
+  const u = 1 - t;
+  return u * u * u * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t * p3;
+}
+
+export function bezBounds(pts: BezPt[], closed: boolean): AIBounds {
+  if (pts.length === 0) return [0, 0, 0, 0];
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  const add = (x: number, y: number): void => {
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
+  };
+  const n = pts.length;
+  const segs = closed ? n : n - 1;
+  for (const p of pts) add(p.a[0], p.a[1]);
+  for (let i = 0; i < segs; i++) {
+    const a = pts[i]!;
+    const b = pts[(i + 1) % n]!;
+    for (let s = 1; s < 16; s++) {
+      const t = s / 16;
+      add(cubicAt(a.a[0], a.r[0], b.l[0], b.a[0], t), cubicAt(a.a[1], a.r[1], b.l[1], b.a[1], t));
+    }
+  }
+  return [minX, maxY, maxX, minY];
+}
+
+/** Is the linear part a rotation times a uniform scale? Returns [angle°, scale] or null. */
+function similarity(m: Aff): [number, number] | null {
+  const s1 = Math.hypot(m[0], m[1]);
+  const s2 = Math.hypot(m[2], m[3]);
+  if (Math.abs(s1 - s2) > 1e-6 * Math.max(1, s1)) return null;
+  if (Math.abs(m[0] * m[2] + m[1] * m[3]) > 1e-6 * Math.max(1, s1 * s1)) return null;
+  if (m[0] * m[3] - m[1] * m[2] < 0) return null;
+  return [(Math.atan2(m[1], m[0]) * 180) / Math.PI, s1];
+}
+
+function transformShape(s: Shape, m: Aff): Shape {
+  if (s.kind === 'poly') return { ...s, pts: s.pts.map((p) => affApply(m, p)) };
+  if (s.kind === 'bez') return { ...s, pts: s.pts.map((p) => ({ ...p, a: affApply(m, p.a), l: affApply(m, p.l), r: affApply(m, p.r) })) };
+  const [cx, cy] = affApply(m, [s.cx, s.cy]);
+  const sim = similarity(m);
+  if (sim) return { ...s, cx, cy, rx: s.rx * sim[1], ry: s.ry * sim[1], rot: s.rot + sim[0] };
+  if (Math.abs(s.rot % 180) < 1e-9 && Math.abs(m[1]) < 1e-12 && Math.abs(m[2]) < 1e-12) {
+    return { ...s, cx, cy, rx: s.rx * Math.abs(m[0]), ry: s.ry * Math.abs(m[3]) };
+  }
+  return transformShape(ellipseToBez(s), m);
+}
+
+export class MockPathPoint {
+  readonly typename = 'PathPoint';
+  constructor(
+    private readonly owner: MockPathItem,
+    private readonly index: number,
+  ) {}
+  private pt(): BezPt {
+    const s = this.owner.shape;
+    if (s.kind !== 'bez') throw new Error('Path point of a non-bezier shape');
+    return s.pts[this.index]!;
+  }
+  get anchor(): [number, number] {
+    return [...this.pt().a];
+  }
+  set anchor(v: [number, number]) {
+    this.pt().a = [v[0], v[1]];
+  }
+  get leftDirection(): [number, number] {
+    return [...this.pt().l];
+  }
+  set leftDirection(v: [number, number]) {
+    this.pt().l = [v[0], v[1]];
+  }
+  get rightDirection(): [number, number] {
+    return [...this.pt().r];
+  }
+  set rightDirection(v: [number, number]) {
+    this.pt().r = [v[0], v[1]];
+  }
+  get pointType(): string {
+    return this.pt().smooth ? ENUMS.PointType.SMOOTH : ENUMS.PointType.CORNER;
+  }
+  set pointType(v: string) {
+    this.pt().smooth = v === ENUMS.PointType.SMOOTH;
+  }
+}
+
+/** Gradient placement: maps gradient space (linear: 0→1 along x; radial: unit circle) to AI space. */
+export type GradGeom = Aff;
 
 export class MockPathItem extends MockItem {
   readonly _type = 'PathItem';
   shape: Shape = { kind: 'poly', pts: [], closed: false };
   filled = true;
-  fillColor: AnyColor = new GrayColor();
+  private _fill: AnyColor = new GrayColor();
+  /** Where the fill gradient sits (set when a GradientColor is assigned). */
+  _grad: GradGeom | null = null;
   stroked = true;
   strokeColor: AnyColor = Object.assign(new GrayColor(), { gray: 100 });
   strokeWidth = 1;
   private _guides = false;
   clipping = false;
+  evenodd = false;
 
+  get fillColor(): AnyColor {
+    return this._fill;
+  }
+  set fillColor(c: AnyColor) {
+    this._fill = c;
+    if (c instanceof GradientColor) {
+      // Illustrator fits a newly assigned gradient to the object's bounds
+      // (a compound path's sub-path: to the compound path's bounds).
+      const host = this.parent instanceof MockCompoundPathItem ? this.parent : this;
+      const [l, t, r, b] = host.boundsAI();
+      const w = Math.max(1e-6, r - l);
+      this._grad = c.gradient?.type === ENUMS.GradientType.RADIAL ? [w / 2, 0, 0, w / 2, (l + r) / 2, (t + b) / 2] : [w, 0, 0, w, l, (t + b) / 2];
+    } else this._grad = null;
+  }
   get guides(): boolean {
     this.check();
     return this._guides;
@@ -331,9 +594,27 @@ export class MockPathItem extends MockItem {
   get closed(): boolean {
     return this.shape.kind === 'ellipse' || this.shape.closed;
   }
+  set closed(v: boolean) {
+    if (this.shape.kind !== 'ellipse') this.shape.closed = !!v;
+  }
+  get pathPoints(): MockPathPoint[] & { add(): MockPathPoint } {
+    this.check();
+    const s = this.shape;
+    const n = s.kind === 'ellipse' ? 4 : s.pts.length;
+    const list = Array.from({ length: n }, (_, i) => new MockPathPoint(this, i));
+    return Object.assign(list, {
+      add: (): MockPathPoint => {
+        if (this.shape.kind === 'ellipse') this.shape = ellipseToBez(this.shape);
+        if (this.shape.kind === 'poly') this.shape = { kind: 'bez', closed: this.shape.closed, pts: this.shape.pts.map((p) => ({ a: p, l: p, r: p })) };
+        const sh = this.shape as Extract<Shape, { kind: 'bez' }>;
+        sh.pts.push({ a: [0, 0], l: [0, 0], r: [0, 0] });
+        return new MockPathPoint(this, sh.pts.length - 1);
+      },
+    });
+  }
   setEntirePath(pts: Array<[number, number]>): void {
     this.check();
-    this.shape = { kind: 'poly', pts: pts.map((p) => [p[0], p[1]] as [number, number]), closed: false };
+    this.shape = { kind: 'poly', pts: pts.map((p) => [p[0], p[1]] as [number, number]), closed: this.shape.kind === 'ellipse' ? true : this.shape.closed };
   }
   protected strokeInset(): number {
     return this.stroked && !this._guides ? this.strokeWidth / 2 : 0;
@@ -346,36 +627,15 @@ export class MockPathItem extends MockItem {
       const hh = Math.sqrt((s.rx * Math.sin(t)) ** 2 + (s.ry * Math.cos(t)) ** 2);
       return [s.cx - hw, s.cy + hh, s.cx + hw, s.cy - hh];
     }
+    if (s.kind === 'bez') return bezBounds(s.pts, s.closed);
     if (s.pts.length === 0) return [0, 0, 0, 0];
     const xs = s.pts.map((p) => p[0]);
     const ys = s.pts.map((p) => p[1]);
     return [Math.min(...xs), Math.max(...ys), Math.max(...xs), Math.min(...ys)];
   }
-  _translate(dx: number, dy: number): void {
-    const s = this.shape;
-    if (s.kind === 'ellipse') {
-      s.cx += dx;
-      s.cy += dy;
-    } else s.pts = s.pts.map(([x, y]) => [x + dx, y + dy]);
-  }
-  _scale(sx: number, sy: number, cx: number, cy: number): void {
-    const s = this.shape;
-    if (s.kind === 'ellipse') {
-      // Approximation for rotated ellipses; exact when rot == 0 (how the host uses it).
-      s.rx *= sx;
-      s.ry *= sy;
-      s.cx = cx + (s.cx - cx) * sx;
-      s.cy = cy + (s.cy - cy) * sy;
-    } else s.pts = s.pts.map(([x, y]) => [cx + (x - cx) * sx, cy + (y - cy) * sy]);
-  }
-  _rotate(deg: number, cx: number, cy: number): void {
-    const s = this.shape;
-    if (s.kind === 'ellipse') {
-      s.rot += deg;
-      return;
-    }
-    const t = (deg * Math.PI) / 180;
-    s.pts = s.pts.map(([x, y]) => [cx + (x - cx) * Math.cos(t) - (y - cy) * Math.sin(t), cy + (x - cx) * Math.sin(t) + (y - cy) * Math.cos(t)]);
+  _affine(m: Aff, pos: boolean, grad: boolean): void {
+    if (pos) this.shape = transformShape(this.shape, m);
+    if (grad && this._grad) this._grad = affCompose(m, this._grad);
   }
 }
 
@@ -384,16 +644,28 @@ abstract class BoxItem extends MockItem {
   boundsAI(): AIBounds {
     return [...this.box] as AIBounds;
   }
-  _translate(dx: number, dy: number): void {
-    this.box = [this.box[0] + dx, this.box[1] + dy, this.box[2] + dx, this.box[3] + dy];
+  _affine(m: Aff, pos: boolean): void {
+    if (!pos) return;
+    const [l, t, r, b] = this.box;
+    const c = [affApply(m, [l, t]), affApply(m, [r, t]), affApply(m, [r, b]), affApply(m, [l, b])];
+    const xs = c.map((p) => p[0]);
+    const ys = c.map((p) => p[1]);
+    this.box = [Math.min(...xs), Math.max(...ys), Math.max(...xs), Math.min(...ys)];
   }
-  _scale(sx: number, sy: number, cx: number, cy: number): void {
-    const b = this.box;
-    this.box = [cx + (b[0] - cx) * sx, cy + (b[1] - cy) * sy, cx + (b[2] - cx) * sx, cy + (b[3] - cy) * sy];
+}
+
+/** Rough advance width of a string (simulator only; no font metrics). */
+export function estimateTextWidth(text: string, size: number): number {
+  let w = 0;
+  for (const ch of text) {
+    if (/\s/.test(ch)) w += 0.28;
+    else if (/[؀-ۿ]/.test(ch)) w += 0.46;
+    else if (/[0-9]/.test(ch)) w += 0.56;
+    else if (/[A-Z]/.test(ch)) w += 0.64;
+    else if (/[a-z]/.test(ch)) w += 0.5;
+    else w += 0.55;
   }
-  _rotate(): void {
-    /* not modelled */
-  }
+  return w * size;
 }
 
 export class MockTextFrame extends BoxItem {
@@ -403,11 +675,121 @@ export class MockTextFrame extends BoxItem {
   size = 24;
   fontName = 'MyriadPro-Regular';
   justification: string = ENUMS.Justification.LEFT;
-  get textRange(): unknown {
-    return {
-      characterAttributes: { size: this.size, textFont: { name: this.fontName } },
-      paragraphAttributes: { justification: this.justification },
+  textColor: AnyColor = Object.assign(new GrayColor(), { gray: 100 });
+  textStroke: AnyColor = new NoColor();
+  textStrokeWeight = 0;
+  leading: number | null = null;
+  tracking = 0;
+  direction: string = ENUMS.ParagraphDirectionType.LEFT_TO_RIGHT_DIRECTION;
+  composer: string = ENUMS.ComposerEngineType.latinCJKComposer;
+  /** Point text created by textFrames.pointText(): baseline anchor (AI space). */
+  anchor: [number, number] | null = null;
+
+  get lines(): string[] {
+    return this.contents.split(/\r\n|\r|\n/);
+  }
+  get lineHeight(): number {
+    return this.leading ?? this.size * 1.2;
+  }
+  boundsAI(): AIBounds {
+    if (!this.anchor) return [...this.box] as AIBounds;
+    const w = Math.max(...this.lines.map((l) => estimateTextWidth(l, this.size)), 1);
+    const [ax, ay] = this.anchor;
+    const left = this.justification === ENUMS.Justification.RIGHT ? ax - w : this.justification === ENUMS.Justification.CENTER ? ax - w / 2 : ax;
+    const top = ay + this.size * 0.78;
+    const bottom = ay - this.size * 0.22 - (this.lines.length - 1) * this.lineHeight;
+    return [left, top, left + w, bottom];
+  }
+  _affine(m: Aff, pos: boolean): void {
+    if (!pos) return;
+    if (this.anchor) {
+      const sy = Math.hypot(m[2], m[3]);
+      this.anchor = affApply(m, this.anchor);
+      this.size *= sy;
+      if (this.leading !== null) this.leading *= sy;
+    } else super._affine(m, pos);
+  }
+  get textRange(): { characterAttributes: Record<string, unknown>; paragraphAttributes: Record<string, unknown>; contents: string } {
+    this.check();
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const tf = this;
+    const app = this.document.app;
+    const characterAttributes = {
+      get size(): number {
+        return tf.size;
+      },
+      set size(v: number) {
+        tf.size = v;
+      },
+      get fillColor(): AnyColor {
+        return tf.textColor;
+      },
+      set fillColor(v: AnyColor) {
+        tf.textColor = v;
+      },
+      get strokeColor(): AnyColor {
+        return tf.textStroke;
+      },
+      set strokeColor(v: AnyColor) {
+        tf.textStroke = v;
+      },
+      get strokeWeight(): number {
+        return tf.textStrokeWeight;
+      },
+      set strokeWeight(v: number) {
+        tf.textStrokeWeight = v;
+      },
+      get textFont(): { name: string } {
+        return { name: tf.fontName };
+      },
+      set textFont(v: { name: string }) {
+        if (!v || !app.fonts.includes(v.name)) throw new Error('Invalid font');
+        tf.fontName = v.name;
+      },
+      get autoLeading(): boolean {
+        return tf.leading === null;
+      },
+      set autoLeading(v: boolean) {
+        if (v) tf.leading = null;
+        else if (tf.leading === null) tf.leading = tf.size * 1.2;
+      },
+      get leading(): number {
+        return tf.lineHeight;
+      },
+      set leading(v: number) {
+        tf.leading = v;
+      },
+      get tracking(): number {
+        return tf.tracking;
+      },
+      set tracking(v: number) {
+        tf.tracking = v;
+      },
     };
+    const paragraphAttributes = {
+      get justification(): string {
+        return tf.justification;
+      },
+      set justification(v: string) {
+        if (!v) throw new Error('Invalid justification');
+        tf.justification = v;
+      },
+      get paragraphDirection(): string {
+        return tf.direction;
+      },
+      set paragraphDirection(v: string) {
+        if (!v) throw new Error('Invalid direction');
+        tf.direction = v;
+      },
+      get composerEngine(): string {
+        return tf.composer;
+      },
+      set composerEngine(v: string) {
+        if (!v) throw new Error('Invalid composer');
+        tf.composer = v;
+      },
+    };
+    return { characterAttributes, paragraphAttributes, contents: this.contents };
   }
 }
 
@@ -450,8 +832,54 @@ function pathCreators(owner: Container): {
   return {
     add: () => make({ kind: 'poly', pts: [], closed: false }),
     rectangle: (top, left, w, h) => make({ kind: 'poly', pts: rectPts(top, left, w, h), closed: true }),
-    roundedRectangle: (top, left, w, h, rh = 15) => make({ kind: 'poly', pts: rectPts(top, left, w, h), closed: true, radius: rh }),
+    roundedRectangle: (top, left, w, h, rh = 15) => make(roundedRectBez(top, left, w, h, rh)),
     ellipse: (top, left, w, h) => make({ kind: 'ellipse', cx: left + w / 2, cy: top - h / 2, rx: w / 2, ry: h / 2, rot: 0 }),
+  };
+}
+
+function textCreators(owner: MockLayer | MockGroupItem): {
+  add(): MockTextFrame;
+  pointText(anchor: [number, number]): MockTextFrame;
+  areaText(path: MockPathItem): MockTextFrame;
+} {
+  const make = (): MockTextFrame => {
+    assertEditable(owner);
+    const t = new MockTextFrame();
+    t.parent = owner;
+    owner._items.unshift(t);
+    return t;
+  };
+  return {
+    add: () => {
+      const t = make();
+      t.box = [0, 0, 200, -30];
+      return t;
+    },
+    pointText: (anchor) => {
+      const t = make();
+      t.anchor = [anchor[0], anchor[1]];
+      return t;
+    },
+    areaText: (path) => {
+      const t = make();
+      t.kind = ENUMS.TextType.AREATEXT;
+      t.box = path.boundsAI();
+      // The path becomes the text frame's container.
+      path.remove();
+      return t;
+    },
+  };
+}
+
+function compoundCreators(owner: MockLayer | MockGroupItem): { add(): MockCompoundPathItem } {
+  return {
+    add: () => {
+      assertEditable(owner);
+      const c = new MockCompoundPathItem();
+      c.parent = owner;
+      owner._items.unshift(c);
+      return c;
+    },
   };
 }
 
@@ -477,17 +905,19 @@ abstract class ContainerItem extends MockItem {
       },
     });
   }
+  get textFrames(): MockTextFrame[] & ReturnType<typeof textCreators> {
+    this.check();
+    return Object.assign(this._items.filter((i): i is MockTextFrame => i instanceof MockTextFrame), textCreators(this as unknown as MockGroupItem));
+  }
+  get compoundPathItems(): MockCompoundPathItem[] & ReturnType<typeof compoundCreators> {
+    this.check();
+    return Object.assign(this._items.filter((i): i is MockCompoundPathItem => i instanceof MockCompoundPathItem), compoundCreators(this as unknown as MockGroupItem));
+  }
   boundsAI(): AIBounds {
     return unionBounds(this._items);
   }
-  _translate(dx: number, dy: number): void {
-    this._items.forEach((i) => i._translate(dx, dy));
-  }
-  _scale(sx: number, sy: number, cx: number, cy: number): void {
-    this._items.forEach((i) => i._scale(sx, sy, cx, cy));
-  }
-  _rotate(deg: number, cx: number, cy: number): void {
-    this._items.forEach((i) => i._rotate(deg, cx, cy));
+  _affine(m: Aff, pos: boolean, grad: boolean): void {
+    this._items.forEach((i) => i._affine(m, pos, grad));
   }
 }
 
@@ -556,20 +986,11 @@ export class MockLayer {
       },
     });
   }
-  get textFrames(): MockTextFrame[] & { add(): MockTextFrame } {
-    return Object.assign(
-      this._items.filter((i): i is MockTextFrame => i instanceof MockTextFrame),
-      {
-        add: (): MockTextFrame => {
-          assertEditable(this);
-          const t = new MockTextFrame();
-          t.box = [0, 0, 200, -30];
-          t.parent = this;
-          this._items.unshift(t);
-          return t;
-        },
-      },
-    );
+  get textFrames(): MockTextFrame[] & ReturnType<typeof textCreators> {
+    return Object.assign(this._items.filter((i): i is MockTextFrame => i instanceof MockTextFrame), textCreators(this));
+  }
+  get compoundPathItems(): MockCompoundPathItem[] & ReturnType<typeof compoundCreators> {
+    return Object.assign(this._items.filter((i): i is MockCompoundPathItem => i instanceof MockCompoundPathItem), compoundCreators(this));
   }
   get layers(): MockLayer[] & { add(): MockLayer } {
     return Object.assign(this._sublayers.slice(), {
@@ -639,6 +1060,37 @@ export function allLayerItems(layers: MockLayer[]): MockItem[] {
   return out;
 }
 
+export class MockSwatch {
+  readonly typename = 'Swatch';
+  name = 'Swatch';
+  color: AnyColor = new GrayColor();
+  _dead = false;
+  constructor(readonly doc: MockDocument) {}
+  remove(): void {
+    this.doc._swatches = this.doc._swatches.filter((x) => x !== this);
+    for (const g of this.doc._swatchGroups) g._swatches = g._swatches.filter((x) => x !== this);
+    this._dead = true;
+  }
+}
+
+export class MockSwatchGroup {
+  readonly typename = 'SwatchGroup';
+  name = 'Group';
+  _swatches: MockSwatch[] = [];
+  _dead = false;
+  constructor(readonly doc: MockDocument) {}
+  addSwatch(sw: MockSwatch): void {
+    if (!this._swatches.includes(sw)) this._swatches.push(sw);
+  }
+  getAllSwatches(): MockSwatch[] {
+    return this._swatches.slice();
+  }
+  remove(): void {
+    this.doc._swatchGroups = this.doc._swatchGroups.filter((x) => x !== this);
+    this._dead = true;
+  }
+}
+
 export class MockDocument {
   readonly typename = 'Document';
   name: string;
@@ -649,6 +1101,8 @@ export class MockDocument {
   _artboards: MockArtboard[] = [];
   _active = 0;
   _gradients: MockGradient[] = [];
+  _swatches: MockSwatch[] = [];
+  _swatchGroups: MockSwatchGroup[] = [];
   _activeLayer: MockLayer | null = null;
   _undo: string[] = [];
   _redo: string[] = [];
@@ -722,6 +1176,37 @@ export class MockDocument {
   get textFrames(): MockTextFrame[] {
     return this.pageItems.filter((i): i is MockTextFrame => i instanceof MockTextFrame);
   }
+  get compoundPathItems(): MockCompoundPathItem[] {
+    return this.pageItems.filter((i): i is MockCompoundPathItem => i instanceof MockCompoundPathItem);
+  }
+  get swatches(): MockSwatch[] & { add(): MockSwatch; getByName(n: string): MockSwatch } {
+    return Object.assign(this._swatches.slice(), {
+      add: (): MockSwatch => {
+        const sw = new MockSwatch(this);
+        this._swatches.push(sw);
+        return sw;
+      },
+      getByName: (n: string): MockSwatch => {
+        const sw = this._swatches.find((x) => x.name === n);
+        if (!sw) throw new Error('No such element');
+        return sw;
+      },
+    });
+  }
+  get swatchGroups(): MockSwatchGroup[] & { add(): MockSwatchGroup; getByName(n: string): MockSwatchGroup } {
+    return Object.assign(this._swatchGroups.slice(), {
+      add: (): MockSwatchGroup => {
+        const g = new MockSwatchGroup(this);
+        this._swatchGroups.push(g);
+        return g;
+      },
+      getByName: (n: string): MockSwatchGroup => {
+        const g = this._swatchGroups.find((x) => x.name === n);
+        if (!g) throw new Error('No such element');
+        return g;
+      },
+    });
+  }
   get placedItems(): MockPlacedItem[] {
     return this.pageItems.filter((i): i is MockPlacedItem => i instanceof MockPlacedItem);
   }
@@ -790,6 +1275,10 @@ export class MockApp {
   /** Installed by the runtime to implement undo/redo. */
   _undoHook: ((dir: 'undo' | 'redo') => void) | null = null;
   _saveHook: ((doc: MockDocument, path: string) => void) | null = null;
+  /** Installed by the runtime: deep copy of an item (new uuid), not yet attached. */
+  _cloneHook: ((item: MockItem) => MockItem) | null = null;
+  /** Installed fonts (PostScript names). */
+  fonts: string[] = ['MyriadPro-Regular', 'MyriadPro-Bold', 'ArialMT', 'Arial-BoldMT', 'Tajawal-Regular', 'Tajawal-Bold', 'Tajawal-ExtraBold', 'Cairo-Regular', 'Cairo-Bold'];
   _openHook: ((path: string) => MockDocument) | null = null;
   alerts: string[] = [];
   menuCommands: string[] = [];
@@ -815,6 +1304,21 @@ export class MockApp {
   }
   set activeDocument(d: MockDocument) {
     this._activeIndex = this._docs.indexOf(d);
+  }
+  get textFonts(): Array<{ name: string }> & { getByName(n: string): { typename: string; name: string; family: string; style: string } } {
+    return Object.assign(
+      this.fonts.map((name) => ({ name })),
+      {
+        getByName: (n: string) => {
+          if (!this.fonts.includes(n)) throw new Error('No such element');
+          const [family, style] = n.split('-');
+          return { typename: 'TextFont', name: n, family: family ?? n, style: style ?? 'Regular' };
+        },
+      },
+    );
+  }
+  getIdentityMatrix(): MockMatrix {
+    return new MockMatrix();
   }
   undo(): void {
     this._undoHook?.('undo');

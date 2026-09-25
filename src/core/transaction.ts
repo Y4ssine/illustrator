@@ -22,7 +22,8 @@ export class OpBuffer implements HostTransaction {
     return this.list;
   }
 
-  private push(op: HostOp): OpRef {
+  /** Record any op and get a reference to its result. */
+  push(op: HostOp): OpRef {
     this.list.push(op);
     return { k: 'op', i: this.list.length - 1 };
   }

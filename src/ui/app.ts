@@ -11,14 +11,14 @@ import type { DocumentSnapshot, HostInfo } from '../core/snapshot';
 import { History, type HistoryEntry } from '../core/commands/history';
 import { CommandRegistry } from '../core/commands/registry';
 import { CommandRunner } from '../core/commands/runner';
-import type { AnyCommand, CommandResult, DocumentCommand } from '../core/commands/types';
+import type { AnyCommand, CommandResult, DocumentCommand, ViewId } from '../core/commands/types';
 import { DOCUMENT_COMMANDS } from '../core/commands/all';
 import { PresetStore } from '../presets/store';
 import { PRESET_KINDS } from '../presets/models';
 import { debounce } from '../utils/misc';
 import { confirmDialog, ToastHost } from './components/overlays';
 
-export type TabId = 'home' | 'grid' | 'align' | 'shadow' | 'layers' | 'presets' | 'settings';
+export type TabId = ViewId;
 
 export interface AppState {
   connected: boolean;
@@ -261,7 +261,7 @@ export class AppController {
     } finally {
       this.set({ busy: null });
       await this.refresh(true);
-      if (cmd.category === 'grid' || cmd.category === 'guides' || cmd.category === 'shadow' || cmd.category === 'layers') void this.scanDocument(true);
+      if (cmd.category !== 'align' && cmd.category !== 'artboards') void this.scanDocument(true);
     }
   }
 
