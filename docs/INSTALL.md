@@ -17,6 +17,13 @@ dist/tests/af-benchmark.jsx         in-Illustrator benchmark
 dist/sim/                           browser simulator (development only)
 ```
 
+## Ready-to-install zip
+
+`npm run package` builds `dist/ArtboardForge-<version>.zip`. It contains the panel,
+double-click installers (`install-mac.command`, `install-windows.bat`), the self-test,
+the benchmark, the F-key scripts and `README-INSTALL.txt`. The installers perform the
+manual steps below.
+
 ## Install for development (unsigned)
 
 Unsigned CEP extensions load only when *PlayerDebugMode* is enabled for the CEP

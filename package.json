@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "bench": "node scripts/bench.mjs",
-    "verify": "npm run typecheck && npm run build && npm run check:es3 && npm test"
+    "verify": "npm run typecheck && npm run build && npm run check:es3 && npm test",
+    "package": "node scripts/package.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",
