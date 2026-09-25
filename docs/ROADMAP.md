@@ -34,10 +34,10 @@ panel UI in the simulator, and replayed by the in-Illustrator self-test.
 | 4 | Guide Generator | 🟡 | Edges, centres, thirds, quarters, golden, offsets, safe areas, hide/show/lock/unlock/delete plugin guides are built. **Missing:** "Clear artboard guides" including the user's own guides (needs an explicit, separate confirmation) |
 | 5 | Spacing tools | ✅ | Normalize, distribute, match smallest/largest/first, exact; RTL anchor; linked shadows follow. Smart alignment (§8) is Phase 2 |
 | 6 | Layer Organizer | ✅ | Templates (§32, §66, §16), naming formats, rename/create/optional reorder, rule-based sorting with confidence and preview. Custom templates are edited as validated JSON in PRESETS |
-| 7 | Ground Shadow | ✅ | Vector radial-falloff ellipse, 12 presets, optional live blur, edit existing |
-| 8 | Contact Shadow | ✅ | Contact and Contact + Ambient (grouped) |
-| 9 | Long Shadow | ⬜ | Next. Plan: exact sweep for convex paths, blend + expand fallback |
-| 10 | Backdrop Generator | ⬜ | Next. Rect / rounded / ellipse from selection bounds + padding; the engine pieces exist |
+| 7 | Ground Shadow | ✅ | v2: layered contact + core + ambient, light-driven drift, blur, 13 presets, edit existing (upgrades v0.1) |
+| 8 | Contact Shadow | ✅ | Contact line; contact added under cast/silhouette shadows |
+| 9 | Long Shadow | ✅ | Hull of the footprint (box / rounded / round) swept along the light, fade, clipped to the artboard. Exact outline sweep for arbitrary paths is not built |
+| 10 | Backdrop Generator | ✅ | Colour › Backgrounds (aurora, spotlight, sunburst, brand gradient, duotone, soft). Selection-bounds backdrops with padding: use Create › Shapes with *Fit to the selected object* |
 | 11 | Social Artboards | ✅ | 10 presets, carousel (continuous or spaced), auto-number |
 | 12 | Preset system | ✅ | Every kind modelled; create / rename / duplicate / delete / import / export / JSON edit |
 | 13 | Command palette | ✅ | Fuzzy search, favourites, recent boost, context suggestions |
@@ -60,6 +60,22 @@ Cross-cutting items already in place:
 - 🟡 Design tokens (§54): spacing tokens only
 - ⬜ Before/After toggle (§60)
 
+## Version 0.2: creative toolkit (built)
+
+Requested after the first review: pro lighting and blending, better shadows, ready
+shapes, gradients and fades from a logo, easy Arabic infographics, and complete looks.
+
+| Item | Status | Where |
+|---|---|---|
+| Lighting builder (§22) + scene light shared with shadows | ✅ | LIGHT: rig, 11 effects, 6 one-click scenes, 7 colour grades |
+| Cast / silhouette / floating / long shadows (§10, §13, §14) | ✅ | SHADOW STUDIO (inner shadow not built) |
+| Gradient overlays & fades (§23, §53) | ✅ | COLOUR › Fades (overlays; no opacity masks) |
+| Palette engine & harmonies (§24–26) | ✅ | COLOUR › Brand palette (extract from a vector logo, harmonies, swatches). Find/replace colours (§73) not built |
+| Ready shapes | ✅ | CREATE › Shapes (~30 parametric shapes, palette styles, native effects) |
+| Infographics (charts, cards, steps, timelines…) | ✅ | INFOGRAPHIC (14 blocks, RTL, Arabic-Indic digits) |
+| Complete compositions | ✅ | CREATE › Design recipes (5) |
+| Verified in real Illustrator | ⬜ | Run `dist/tests/af-selftest.jsx` — it now covers the v0.2 APIs and exports a render |
+
 ## Implementation roadmap
 
 ### Milestone 2: validate on real hosts (next)
@@ -75,9 +91,9 @@ Cross-cutting items already in place:
 
 ### Milestone 3: complete Phase 1
 
-Long Shadow, Backdrop Generator, Document cleanup and inspector (§34, §36, §61, §62),
-Export helper and batch export (§63, §64), custom-area UI, Equalize margins,
-Before/After.
+Document cleanup and inspector (§34, §36, §61, §62), Export helper and batch export
+(§63, §64), custom-area UI, Equalize margins, Before/After, editing infographic data in
+place, colour find/replace.
 
 ### Phase 2
 
@@ -86,11 +102,8 @@ Before/After.
 - Randomizer (§27)
 - Depth builder and depth scale (§16, §17)
 - Atmospheric perspective (§18)
-- Lighting builder (§22)
-- Gradient overlays (§23)
-- Palette engine, harmony and find/replace (§24–26, §73)
 - Perspective grids (§47)
-- Cast, perspective and inner shadows and glows (§10, §13)
+- Inner shadows, reflections, multi-light rigs
 - Smart offset, block shadow and fake 3D (§48–50)
 - Typography tools (§37–39): overflow and missing-font detection, type scale, Arabic
   alignment helpers

@@ -1,33 +1,55 @@
 # Artboard Forge
 
-A design-assistant panel for Adobe Illustrator, built for social-media, campaign, poster
-and branding work, with first-class support for Arabic/RTL documents. It automates the
-technical parts of building a composition (artboards, grids, spacing, shadows, layer
-structure) and leaves the creative decisions to the designer.
+A design-assistant panel for Adobe Illustrator for social-media, campaign, poster,
+product and infographic work, with first-class Arabic/RTL support. It builds the
+technical *and* the atmospheric parts of a composition — grids, spacing, layers,
+**light, shadows, colour, shapes and infographics** — as ordinary, editable
+Illustrator art, and leaves the creative decisions to the designer.
 
-> **Status: milestone 1 (vertical slice).** The core engines, the ExtendScript host, the
-> CEP panel and 103 automated tests are done. **It has not been run in real Illustrator
-> yet**: it was built where Illustrator was not available. Run the generated self-test
-> first ([docs/TESTING.md](docs/TESTING.md)).
+> **Status: version 0.2 (creative toolkit).** 202 automated tests pass against a
+> simulated Illustrator that runs the real host script. **It has not been run in real
+> Illustrator yet** (it was built where Illustrator is not available). Run the
+> generated self-test first ([docs/TESTING.md](docs/TESTING.md)): it now also checks the
+> new lighting, shadow, shape, text and colour APIs and exports a render for review.
 
-## What works today
+<p align="center">
+  <img src="docs/images/v2-r-campaign-hero.png" width="23%" alt="Campaign hero recipe (simulator render)"/>
+  <img src="docs/images/v2-b-product-spotlight.png" width="23%" alt="Product spotlight recipe with another palette (simulator render)"/>
+  <img src="docs/images/v2-r-infographic-poster.png" width="23%" alt="Arabic infographic poster (simulator render)"/>
+  <img src="docs/images/v2-r-celebration.png" width="23%" alt="Celebration recipe (simulator render)"/>
+</p>
+<p align="center"><sub>Simulator renders (approximate), not Illustrator screenshots. Each is one click from the <b>Create</b> tab and fully editable.</sub></p>
 
-| Area | Features |
+## What it does
+
+| Tab | Features |
 |---|---|
-| **Artboards** | Instagram Square / Portrait / Story, X, LinkedIn, YouTube, 16:9, A4/A3. It reuses a matching artboard, resizes an empty new document, or adds one. Also: carousel slides (continuous or spaced) and auto-numbering |
-| **Smart Grid** | Columns, rows, modular, baseline, thirds, golden sections, centre axes, diagonals, radial and custom ratios (`1:2:1`). Targets: artboard, all artboards, selection, each object, clip-mask bounds. Presets include *Campaign Grid* and *Poster*. Live preview |
-| **Guides** | Edges, centres, thirds, quarters and golden sections for the selection or artboard; offsets (+8/+16/+24/+32/custom); social and print safe areas; hide / lock / delete **plugin** guides only |
-| **Spacing** | Live gap read-out with a suggestion (4/8/10/12 px or token scale). Normalize, distribute, match smallest/largest/first, exact gap. RTL-aware anchor. Linked shadows move with their subject. Two-object measure, margins read-out |
-| **Shadow Lab** | Ground, Contact, Contact + Ambient. Vector radial-falloff ellipses (no rasterising) placed **directly below** each object, Multiply, 12 presets, optional live blur, live preview, **edit existing shadow** (even after reopening the file) |
-| **Layers** | Templates: *Campaign Standard*, *Saudi Campaign Workspace*, *Depth Stack*; custom templates as JSON. Recognises existing layers (English and Arabic aliases), renames and creates, and sorts **selected** items by rules with confidence levels. Preview first. Never deletes layers |
-| **Set Up Design** | One click: artboard, layer structure, grid and safe area (e.g. *Saudi Campaign Workspace 4:5*). Adds no logos or artwork |
-| **Workflow** | Command palette (Ctrl/Cmd+K), favourites, recent operations, repeat last, Safe Mode, presets (create / rename / duplicate / delete / import / export), friendly errors with copyable diagnostics, one Undo per command, offline, no telemetry |
+| **Create** | **Design recipes** — complete, editable starting compositions in one undo step: *Campaign hero* (glowing arch frame, aurora, rays, headline), *Product spotlight* (stage, key light, rim, floor glow, studio shadow), *Infographic poster*, *Celebration post*, *Quote card*. **Shapes** — ~30 parametric shapes (round/pointed/ogee arches, arch frames, frames, crenellation, 8-point star, bursts, seals, ribbons, tags, tickets, speech bubbles, arrows, chevrons, waves, Sadu-inspired bands, rays, blobs) as clean Bézier paths, styled from your palette (brand gradient, deep, glow, duotone, **foil**, fade, **glass**, outline, **neon**) with optional native drop shadow / glow |
+| **Light & Blend** | One **scene light** (compass direction, height, Kelvin warmth or custom colour, intensity, softness) drives everything. **Effects:** back glow, rim light (follows vector outlines), floor glow, neon glow, god rays, key light, light leak, bokeh, haze, vignette and **colour grades** (golden hour, teal & orange, emerald, night, desert, cinematic, luxury) — gradient shapes with Screen / Soft Light / Multiply and optional Gaussian Blur. **One-click scenes:** Hero glow, Golden rays, Studio product, Night neon, Lantern warmth, Emerald luxury |
+| **Shadow Studio** | **Studio ground** (contact + core + ambient), **cast** shadows thrown by the light (long at sunset, short at noon), **true silhouette** (your vector art or live text projected onto the floor), contact line, **floating** (UI card elevation or hovering product), **long** flat shadows. Subject types (person, product, bottle, car…), 13 presets, live preview, **edit existing** (even after reopening) |
+| **Colour** | **Extract a brand palette from a selected vector logo** (area-weighted, perceptual clustering), harmonies, gradient & fill styles applied to the selection, **swatch groups**, generated **backgrounds** (aurora, spotlight, sunburst, brand gradient, duotone, soft) and **fades** (fade a photo into the background, legibility fades) |
+| **Infographic** | Paste `label | value | note` lines and get editable blocks: **stat cards, bar & column charts, donut & pie, progress bars & rings, process steps, timelines, comparison (butterfly), pictograms, icon lists, title headers** — right-to-left layout for Arabic, **Arabic-Indic digits**, World-Ready composer, built-in pictograms, palette colours |
+| **Grid & Guides** | Columns, rows, modular, baseline, thirds, golden sections, centre axes, diagonals, radial and custom ratios; targets artboard / all / selection / each object / clip bounds; guides, offsets, safe areas; manage plugin guides only |
+| **Spacing & Align** | Live gap read-out with suggestions (4/8/10/12 px or tokens); normalize, distribute, match, exact gap; RTL-aware; linked shadows move with their subject |
+| **Layers** | Templates (*Campaign Standard*, *Saudi Campaign Workspace*, *Depth Stack*, custom JSON), Arabic/English layer recognition, rule-based sorting with confidence and preview; never deletes layers |
+| **Home & workflow** | Artboards (Instagram, X, LinkedIn, YouTube, 16:9, A4/A3, carousels), *Set Up Design*, context actions for the selection, command palette (Ctrl/Cmd+K), favourites, history, repeat last, presets (import/export), Safe Mode, friendly errors, **one Undo per command**, offline, no telemetry |
+
+More simulator renders: [shadow styles](docs/images/v2-shadow-styles.png) ·
+[lighting scene](docs/images/v2-lighting-scene.png) ·
+[Arabic infographic blocks](docs/images/v2-infographic-blocks.png) ·
+[another brand palette](docs/images/v2-b-campaign-hero.png) ·
+[English infographic](docs/images/v2-b-infographic-poster.png) ·
+panel: [Create](docs/images/v2-panel-create-built.png),
+[Light](docs/images/v2-panel-light-built.png),
+[Shadow](docs/images/v2-panel-shadow-preview.png),
+[Colour](docs/images/v2-panel-color-extracted.png),
+[Infographic](docs/images/v2-panel-info-built.png).
 
 ## Quick start
 
 ```bash
 npm install
-npm run verify        # typecheck, build, ES3 check, 103 tests
+npm run verify        # typecheck, build, ES3 check, 202 tests
 npm run dev           # simulator at http://localhost:8123/ (real panel + real host script on a mock document)
 ```
 
@@ -53,9 +75,13 @@ To install in Illustrator, see [docs/INSTALL.md](docs/INSTALL.md). You need Illu
 
 ## Principles
 
-- Non-destructive: generated art is new, tagged and named; deletions are limited to
-  plugin-tagged items.
+- Non-destructive: generated art is new, tagged and named (on role layers such as
+  LIGHTING, BACKGROUND, DECORATIONS); deletions are limited to plugin-tagged items.
+  The creative commands only add art, except *Apply Colour Style*, which recolours the
+  selected artwork (one Undo).
 - Selection-scoped: nothing outside the selection is changed.
 - One Undo per command.
-- Arabic text is never reversed or outlined.
+- Arabic text is never reversed or outlined; generated Arabic text is live, RTL, and
+  uses the World-Ready composer.
+- Everything stays editable: gradients, blend modes, live effects, live text.
 - Nothing leaves the computer.

@@ -4,13 +4,13 @@ Testing has four layers, and each has a clear scope:
 
 | Layer | Runs | Proves | Does **not** prove |
 |---|---|---|---|
-| 1. Unit tests (`tests/unit`) | Node, `npm test` | Engines are correct: grid maths, spacing, shadow geometry and falloff, ratios, units, layer planning, auto-sort, presets, search, seeded RNG, tags, settings | Anything about Illustrator |
-| 2. Host tests (`tests/host`) | Node: the **real ExtendScript host** on the mock DOM | Protocol, batch semantics (rollback, deferred deletes, one step per command), preview safety, locked layers, CMYK, degraded capabilities, stale selections, Arabic round-trip, stacking order, the §95 milestone flow, save/reopen recognition | That the mock matches Illustrator (both were written from the same understanding of the DOM) |
+| 1. Unit tests (`tests/unit`) | Node, `npm test` | Engines are correct: grid maths, spacing, shadow v2 light geometry (cast factor, cast matrix, billboards) and falloff, Live Effect XML round-trip, ratios, units, layer planning, auto-sort, presets, search, seeded RNG, tags, settings, command wiring | Anything about Illustrator |
+| 2. Host tests (`tests/host`) | Node: the **real ExtendScript host** on the mock DOM | Protocol, batch semantics (rollback, deferred deletes, one step per command), preview safety, locked layers, CMYK, degraded capabilities, stale selections, Arabic round-trip, stacking order, the §95 milestone flow, save/reopen recognition; **v0.2:** Bézier/compound paths, gradient angle and elliptical fit, RTL text + World-Ready + font fallback, duplicate/restyle/transform/rotate/clip, swatch groups, colour sampling, and every light effect, scene, shadow style, shape, style, background, fade, infographic block and recipe end to end (one undo step each; previews cancel cleanly) | That the mock matches Illustrator (both were written from the same understanding of the DOM) |
 | 3. ES3 check (`npm run check:es3`) | Node (acorn, `ecmaVersion: 3`) | ExtendScript files and generated scripts parse in an ES3 engine and are ASCII-only | Runtime behaviour |
 | 4. **In-Illustrator self-test** (`dist/tests/af-selftest.jsx`) + manual QA | Real Illustrator | The actual acceptance test | — |
 
-Current counts: **103 automated tests**, plus 44 checks in the self-test when it is dry-run
-in the simulator.
+Current counts: **202 automated tests**, plus the self-test checks (dry-run in the
+simulator on every `npm test`).
 
 **Status: layer 4 has not been run.** No Illustrator was available in the build
 environment. Treat everything as unverified on real hosts until the self-test report is
@@ -35,7 +35,9 @@ npm run bench      # benchmark (simulator)
 | Preset serialization | `unit/presets.test.ts`: round-trip of every kind, validation, versioning, import conflicts, example files |
 | Layer naming | `unit/layers.test.ts`: formats, normalisation, Arabic aliases, planning, idempotency, auto-sort |
 | Aspect ratios | `unit/geometry.test.ts` |
-| Shadow parameters | `unit/shadow.test.ts`: placement, clamping, monotonic falloff, op building, presets valid |
+| Shadow parameters | `unit/shadow.test.ts`: light direction/length, cast matrix, billboards, clamping, monotonic falloff, op building per style, presets valid |
+| Creative host ops | `host/creative-ops.test.ts` |
+| Creative commands | `host/creative-commands.test.ts` (light, scenes, shadow v2, colour, shapes, infographics, recipes) |
 | Distribution | `unit/spacing.test.ts` |
 | Host behaviour | `host/host-ops.test.ts`, `host/vertical-slice.test.ts` |
 | Self-test and benchmark scripts | `host/selftest.test.ts` (ES3 parse + full dry run) |
@@ -51,8 +53,14 @@ What it does:
 
 - creates a new document;
 - replays the exact op batches the panel produces (captured from the simulator), for
-  Instagram Portrait, test content, Campaign Grid, Ground Shadow, Normalize spacing and
-  Organize layers;
+  Instagram Portrait, test content, Campaign Grid, Studio Ground Shadow, Normalize
+  spacing and Organize layers;
+- **v0.2:** cast shadow (transform matrix + pivot correction), silhouette shadow
+  (duplicate + restyle + transform, tags stripped), back glow and light rays (clipping
+  groups, rotation about an edge), Bézier arch + native drop shadow, Arabic stat cards
+  (RTL paragraph direction, World-Ready composer, Arabic-Indic digits, font used), swatch
+  group and colour sampling — each compared with the simulator's geometry;
+- exports `~/Desktop/af-selftest-render.png` (50%) so the result can be checked by eye;
 - checks the results against what the simulator produced;
 - checks Arabic text, the storage round-trip and a preview (inside one script, so for
   information only);

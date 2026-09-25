@@ -35,8 +35,8 @@ Legend:
 | Hide/lock plugin guides | DOM layer `visible/locked`, plugin guide layer only | **Built** |
 | Hide/lock *all* guides globally | Menu `showguide` / `lockguide` (toggles) | Not used: state-unaware toggles |
 | Spacing, distribution (7) | DOM `translate` | **Built** |
-| Ground/contact shadows (10–12) | DOM ellipse + radial `GradientColor` with `GradientStop.opacity`, scaled with "transform gradients" | **Built** |
-| Soft blur on shadows | Undoc `PageItem.applyEffect(LiveEffect XML)` "Adobe PSL Gaussian Blur" | **Built, optional**; falls back with a warning |
+| Studio ground / contact shadows (10–12) | DOM ellipses + radial `GradientColor` with `GradientStop.opacity`, scaled with "transform gradients"; layered contact + core + ambient | **Built (v2)** |
+| Soft blur on shadows and lights | Undoc `PageItem.applyEffect(LiveEffect XML)` "Adobe PSL Gaussian Blur" | **Built, on by default** (Settings); falls back to the vector falloff with a warning |
 | Stop-opacity fallback | DOM fade-to-white + Multiply | **Built** |
 | Layer organizer (32, 33) | DOM `layers.add`, `move`, `zOrder`, `name`, `printable` | **Built** |
 | Metadata / recognition (84, 85) | DOM `PageItem.tags` | **Built** |
@@ -44,16 +44,24 @@ Legend:
 | Live preview / cancel (59) | DOM `app.undo()`/`app.redo()` with guard, or delete by reference | **Built** (verify in host) |
 | Selection awareness (58) | Polling a cheap query; no CEP selection event | **Built** |
 | Command palette, panel shortcuts (57, 87) | Panel keyboard focus only | **Built** |
+| Lighting: glows, rays, rim, neon, bokeh, leaks, haze, vignette, grades | DOM gradient shapes + blend modes (`BlendModes.SCREEN`, `SOFTLIGHT`, …) + clipping groups + optional blur | **Built (v0.2)** |
+| Ready shapes (arches, frames, badges, ribbons…) | DOM `pathPoints.add()` with `anchor/leftDirection/rightDirection/pointType`; compound paths with `evenodd` | **Built (v0.2)** |
+| Gradient angle | `GradientColor.angle` setter is broken; `rotate(a, false, false, true, false, CENTER)` + gradient-only `resize` | **Built** |
+| Native drop shadow / outer / inner glow on shapes | Undoc Live Effect XML (`Adobe Drop Shadow`, `Adobe Outer Glow`, `Adobe Inner Glow`) | **Built, optional** |
+| Palette from a logo | DOM walk of fill/stroke/gradient/spot colours weighted by area; OKLab clustering in the panel | **Built** (vector art only) |
+| Swatch groups | DOM `swatchGroups.add()`, `swatches.add()`, `addSwatch()` | **Built** |
+| Infographics (charts, cards, steps, timelines) | DOM paths + `textFrames.pointText/areaText`; RTL via `ParagraphDirectionType`, World-Ready via `ComposerEngineType.optycaComposer` | **Built (v0.2)** |
+| Design recipes (complete compositions) | Everything above in one batch | **Built (v0.2)** |
 | Global shortcuts (87) | Not possible from CEP. Workaround: Scripts-menu `.jsx` → CSXSEvent → panel; bind with an Action + F-key | **Built, experimental** |
-| Long shadow (14) | DOM path construction (convex sweep) or blend + expand via menu commands | Phase 1 backlog |
-| Backdrop generator (40) | DOM rect / rounded rect / ellipse | Phase 1 backlog (trivial on this base) |
+| Long shadow (14) | DOM path: convex hull of the footprint swept along the light, linear fade, clipped to the artboard | **Built (v2)** |
+| Backdrop generator (40) | DOM shapes + gradients + blur: aurora, spotlight, sunburst, brand gradient, duotone, soft | **Built (Colour › Backgrounds)** |
 | Document cleanup (34, 36) | DOM traversal (bounded), `remove` | Phase 1 backlog |
 | Export assistant (63, 64) | DOM `exportForScreens` (AI 22+), `exportFile` | Phase 1 backlog |
-| Cast shadow from silhouette (13) | DOM duplicate + transform matrix (skew/scale) + gradient | Phase 2 |
+| Cast shadow from silhouette (13) | DOM `duplicate` + `restyle` + `transform(matrix)` projected by the light (cot of the elevation) + gradient | **Built (v2)**: vector art and text; images get a subject-shaped cast |
 | Offset path / smart offset (50) | Undoc `applyEffect("Adobe Offset Path")` (live), or menu `Live Offset Path` + expand | Phase 2 |
 | Block shadow / fake 3D (48, 49) | Duplicate + translate steps + Pathfinder (menu `Live Pathfinder Add`) | Phase 2 |
-| Pattern mask (29) | DOM `groupItems.add` + `clipped = true` | Phase 2 |
-| Edge fade / opacity masks (53) | No DOM API for opacity masks; menu `makeMask` works on the selection | Phase 2 (menu-based, fragile) |
+| Pattern mask (29) | DOM `groupItems.add` + `clipped = true` | Phase 2 (clipping groups are used by the light and background engines) |
+| Edge fade (53) | No DOM API for opacity masks. Fades are gradient overlays whose stop opacity goes to 0 | **Built (Colour › Fades)** as overlays; true opacity masks not built |
 | Grain/texture (51, 52) | Vector dots (DOM), or raster via undoc `applyEffect` "Grain" | Phase 2 |
 | Text overflow detection (37) | No direct property. Compare `lines` content length with `contents` | Phase 2 |
 | Missing fonts (61) | Compare the frame's font against `app.textFonts` | Phase 2 |
@@ -86,6 +94,14 @@ GitHub sources of the documentation were read directly, plus search-result excer
 | Script coordinates are Y-up; `app.coordinateSystem` default unverified (set explicitly) | Medium-high | docsforadobe positioning.md |
 | CEP per version: AI 25.0 = CEP 10, 25.3 = CEP 11, 29.5.1 = CEP 12 | High | CEP 12 HTML Extension Cookbook |
 | UXP plugins for Illustrator: public beta announced for spring 2027; CEP included until Dec 2029 | Medium-high (search excerpts of Adobe's Sept 2026 blog post) | blog.developer.adobe.com (2026/09) |
+| Live Effect XML: colour is `"5 r g b"` (RGB, 0–1 floats), `"0 k"` gray, `"1 c m y k"` CMYK. Drop Shadow `I blnd, R opac (0–1), R horz, R vert, R blur, B usePSLBlur, I csrc, R dark, B pair` + `<Entry name="sclr">`; Outer Glow `blnd, opac, blur` + `sclr`; Inner Glow `blnd, gtyp (0 centre, 1 edge), opac, blur` + `gclr`; Gaussian Blur `R PrevDocScale 1 I PrevDres 300 R blur N`; Feather `Adobe Fuzzy Mask` `R Radius`. `blnd` 0 = Normal, 1 = Multiply (≥ 2 unverified, not used) | Medium-high | mark1bean/live-effect-functions-for-illustrator (LE_Functions.js + tests) |
+| `textFrames.pointText(anchor)`, `textFrames.areaText(path)`; `ParagraphAttributes.paragraphDirection = ParagraphDirectionType.RIGHT_TO_LEFT_DIRECTION`; `composerEngine = ComposerEngineType.optycaComposer` (= World-Ready); `CharacterAttributes.digitSet`, `dirOverride`, `kashidas` exist | Medium-high | docsforadobe guide (TextFrameItems.md); AI 27 object model (omv.xml); Adobe CC Libraries `util.jsx` maps World-Ready to `optycaComposer` |
+| `app.textFonts.getByName(PostScriptName)` throws when the font is missing | High | docsforadobe; public scripts wrap it in try/catch |
+| `transform(matrix, changePositions, changeFillPatterns, changeFillGradients, changeStrokePattern, changeLineWidths:Number(%), transformAbout)`; `app.getIdentityMatrix()`, `mValueA…D/TX/TY` | High | docsforadobe PageItem.md, Matrix.md; object model |
+| `duplicate([relativeObject][, ElementPlacement])` returns the copy | High | docsforadobe PathItem.md / TextFrameItem.md |
+| Clipping groups: top path `clipping = true` (compound: `pathItems[0].clipping`), then `group.clipped = true`. Only `PathItem` has `clipping` | Medium-high | public scripts (ai2html, Everstory); object model |
+| `GradientColor.angle` cannot be set (bug since 2008, still in 29.3.1); rotating only the gradient with `rotate(a, false, false, true, false, Transformation.CENTER)` works | High | docsforadobe GradientColor.md; creold ConvertToGradient.jsx |
+| `PathPoint.anchor / leftDirection (in) / rightDirection (out) / pointType` after `pathPoints.add()` | High | docsforadobe creatingPathsShapes.md |
 
 Assumptions **not** independently verified, so the self-test checks them in Illustrator:
 
@@ -99,6 +115,17 @@ Assumptions **not** independently verified, so the self-test checks them in Illu
 - A new document's first artboard sits at the origin. If not, the self-test logs the
   real origin and shifts its fixtures.
 - `app.convertSampleColor` is used for CMYK when available, otherwise a naive conversion.
+- **v0.2:** `item.transform()` about `CENTER` pivots on the centre of the geometric
+  bounds (the pivot correction relies on it). The test compares cast and silhouette
+  shadow bounds with the simulator (±2 pt).
+- **v0.2:** `resize(..., changePositions = false, ..., changeFillGradients = true)`
+  scales only the gradient (like the verified `rotate` trick). Used for gradient length
+  after rotation and for elliptical radial fills on non-ellipse shapes.
+- **v0.2:** Bézier paths built point by point match the simulator's bounds (arch test,
+  ±1.5 pt); the Live Effect XML above applies without a warning; RTL paragraph
+  direction and the World-Ready composer read back as set; swatch groups are created;
+  colour sampling reads a known colour. The test also exports
+  `af-selftest-render.png` to the Desktop for a visual check.
 
 ## 4. Limitations in detail
 
@@ -165,3 +192,47 @@ workaround · would the C++ SDK solve it · would UXP simplify it.
   opacity curve). The blur is an opt-in extra.
 - **C++ SDK:** not needed.
 - **UXP:** may document effects.
+
+### 4.7 Fading artwork with a mask (§53, silhouettes)
+- **Requested:** fade a photo or a cast silhouette out along its length.
+- **Limitation:** opacity masks cannot be created or edited from a script.
+- **API:** gradient stop opacity; clipping masks (hard edges only); menu `makeMask`
+  (clipping, selection-based).
+- **Workaround:** fades are gradient-opacity overlays in the background colour
+  (Colour › Fades). Single-path silhouettes fade through their own gradient fill;
+  multi-part (group) silhouettes get a flat tone plus blur, because each sub-path
+  would restart the gradient.
+- **C++ SDK:** yes (`AIMaskSuite`).
+- **UXP:** unknown.
+
+### 4.8 Recolouring or reading images (rim light, silhouette, neon, palette on photos)
+- **Requested:** light, recolour or sample colours from placed/embedded images.
+- **Limitation:** scripts have no pixel access and cannot recolour raster content.
+- **API:** `PlacedItem`/`RasterItem` bounds and transforms only.
+- **Workaround:** image subjects get bounds-based effects (edge light clipped to the
+  bounds, subject-shaped cast shadow, back and floor glows). Palette extraction reads
+  vector art only; trace a raster logo (Image Trace) first. The panel says so.
+- **C++ SDK:** partly (raster access via `AIRasterSuite`).
+- **UXP:** unknown.
+
+### 4.9 Measuring text while building a layout (infographics)
+- **Requested:** size and place labels exactly around their real text width.
+- **Limitation:** a batch runs in one script call; text metrics are only known after the
+  frame exists, and the panel plans the batch before it runs.
+- **API:** `TextFrame` bounds after creation; `createOutline()`.
+- **Workaround:** sizes are proportional to the block; labels use point text anchored at
+  their reading edge (right in RTL); long notes use area text that wraps. The designer
+  adjusts copy after insertion.
+- **C++ SDK:** yes (ATE text measuring).
+- **UXP:** possibly (async measure-then-place).
+
+### 4.10 Fonts for Arabic infographics and recipes
+- **Requested:** nice Arabic typography out of the box.
+- **Limitation:** only installed fonts can be used; a script cannot activate fonts.
+- **API:** `app.textFonts.getByName()`.
+- **Workaround:** candidate lists in Settings (Tajawal, Cairo, Almarai, DIN Next Arabic,
+  Noto Kufi, Myriad Arabic…); first installed wins, otherwise Illustrator's default with
+  a warning. Paragraph direction RTL + World-Ready composer are set on every Arabic
+  frame.
+- **C++ SDK:** no.
+- **UXP:** no.

@@ -15,20 +15,25 @@ read-only; *Duplicate* makes an editable copy.
 
 ```ts
 interface ShadowPreset   { params: ShadowParams }
-interface ShadowParams {
-  kind: 'ground' | 'contact' | 'contactAmbient';
-  widthScale: number;   // shadow width ÷ subject width            (0.05–4)
-  flatness: number;     // shadow height ÷ shadow width (camera)    (0.01–1)
-  softness: number;     // 0 hard … 1 very soft (gradient falloff)
-  opacity: number;      // 0–100
-  offsetX: number;      // % of subject width (+ right)
-  offsetY: number;      // % of subject height (+ down; 0 = centred on the bottom edge)
-  rotation: number;     // degrees, Illustrator convention (+ = counter-clockwise)
+interface ShadowParams {                 // Shadow v2
+  style: 'ground' | 'contact' | 'cast' | 'silhouette' | 'floating' | 'long';
+  subject: 'person' | 'product' | 'bottle' | 'car' | 'box' | 'card' | 'icon' | 'text';
+  lightAngle: number;   // compass degrees the light comes FROM (0 top/behind, 90 right, 180 front, 270 left)
+  elevation: number;    // 5 (sunset, long shadows) … 90 (overhead)
+  strength: number;     // overall darkness 0–100
+  softness: number;     // 0 hard sun … 100 overcast/softbox
+  length: number;       // cast/long length, % of the physical length (10–300)
+  spread: number;       // footprint width % (30–250)
   color: string;        // sRGB hex; converted to the document colour space by the host
+  blur: boolean;        // Gaussian Blur live effects (photographic edge)
+  contact: boolean;     // add a contact line under cast/silhouette shadows
+  lift: number;         // floating: gap, % of the subject height
+  floatMode: 'card' | 'hover';
+  footprint: 'rect' | 'round' | 'ellipse';   // long / bounds-based floating
+  radius: number;       // pt, rounded footprints
   blend: BlendMode;     // 'multiply' by default
-  liveBlur: number;     // pt; 0 = off (optional raster Gaussian Blur live effect)
-  ambient: { widthScale; flatness; softness; opacity };   // used by contactAmbient
 }
+// v0.1 shadows ({kind, widthScale, flatness, opacity, …}) are recognised and upgraded when edited.
 
 interface GridPreset { spec: GridSpec }
 interface GridSpec {
@@ -52,11 +57,11 @@ interface LayerTemplate {
   // Listed in Layers-panel order: first = top (front). Numbers are labels only.
 }
 
-interface PalettePreset  { colors: Array<{ name; hex; role? }> }   // data only; the palette engine is Phase 2
+interface PalettePreset  { colors: Array<{ name; hex; role? }> }   // data only; the active brand palette lives in settings.palette
 interface SpacingPreset  { system: { kind: 'multiple'; base } | { kind: 'scale'; values: number[] }; tokens? }
 interface ArtboardSizePreset { code; w; h; colorSpace: 'RGB' | 'CMYK'; safeZone? }
 interface PatternPreset  { type; cellSize; spacing; strokeWidth; rotation; offset; alternation; symmetry; density; inspiration? }  // Phase 2
-interface LightingPreset { type; angle; spread; strength; falloff; color; blend; opacity }                                      // Phase 2
+interface LightRig       { angle; elevation; kelvin; color: string | null; intensity; softness }  // settings.lightRig; presets in RIG_PRESETS
 interface ExportPreset   { format; scales; transparent; namePattern }                                                           // Phase 1 backlog
 ```
 
@@ -86,20 +91,17 @@ upper-cased) against the template labels and English/Arabic aliases. For example
 
 ### 1.2 Built-in presets (Phase 1)
 
-- **Shadows:**
-  - Soft Social Media
-  - Person Grounded
-  - Product Photography
-  - Luxury Product
-  - Floating Card
-  - Car Grounded
-  - Poster Dramatic (ground)
-  - Sunset (long ground)
-  - Studio Left / Right
-  - Soft Noon
-  - Hard Noon
-
-  *Architectural* and other cast-shadow looks wait for the cast-shadow engine.
+- **Shadows (v2):** Studio product · Person on the ground · Golden-hour cast · Noon sun ·
+  Backlit hero · Luxury product · Bottle on a table · Car grounded · Logo / type
+  silhouette · Floating card (UI) · Hovering product · Long shadow 45° · Contact line only.
+- **Light rigs:** Golden hour · Studio key left/right · Noon sun · Backlit hero ·
+  Lantern / candle · Moonlight · Neon night · Emerald glow.
+- **Scenes:** Hero glow · Golden rays · Studio product · Night neon · Lantern warmth ·
+  Emerald luxury.
+- **Colour grades:** Golden hour · Teal & orange · Emerald mood · Night blue · Desert heat
+  · Cinematic fade · Luxury gold.
+- **Design recipes:** Campaign hero · Product spotlight · Infographic poster ·
+  Celebration post · Quote / announcement.
 - **Grids:**
   - Campaign Grid (6×8, 24 gutters, 72 margins, centre axes)
   - 12 Columns
@@ -144,11 +146,13 @@ type BatchResult = { ok:true; results; warnings; ms } | { ok:false; error:{code,
 
 | Tag | Example |
 |---|---|
-| `AF_type` | `groundShadow` |
+| `AF_type` | `groundShadow`, `castShadow`, `light`, `shape`, `infographic`, `background`, `decor`, … |
+| `AF_light` | light effect id, e.g. `backGlow`, `beams`, `rim` (light groups) |
+| `AF_info` | infographic block id, e.g. `statCards`, `donut` |
 | `AF_ver` | `1` |
 | `AF_id` | `afm3x2k7q4zt1b` |
 | `AF_src` | the subject's `AF_id` |
-| `AF_params` | `{"kind":"ground","widthScale":0.95,…,"presetId":"soft-social","subjectRect":{…}}` |
+| `AF_params` | `{"style":"ground","subject":"product","lightAngle":320,…,"presetId":"studio-product","subjectRect":{…}}` |
 | `AF_preview` | `1` (preview only) |
 
 ## 4. Settings (`settings.json`)
@@ -157,7 +161,10 @@ type BatchResult = { ok:true; results; warnings; ms } | { ok:false; error:{code,
 horizontally), `boundsMode`, `spacingPreset`, `shadowPreset`, `shadowPlacement`
 (`belowSubject` | `shadowLayer`), `gridPreset`, `layerTemplate`, `namingFormat`,
 `guideLayerName` (`_GUIDES`), `artboardSpacing`, `artboardNamePattern` (`{CODE}_{nn}`),
-`artboardMode`, `safeMode`, `pollInterval`, `favorites`, `recent`.
+`artboardMode`, `safeMode`, `pollInterval`, `favorites`, `recent`, and (v0.2)
+`lightRig` (the scene light shared by Light and Shadow), `palette` (active brand palette
+hexes, `null` = built-in), `fontsArabic` / `fontsLatin` (PostScript candidates, first
+installed wins), `digits` (`western` | `arabic`), `liveBlur`.
 
 Unknown or invalid values are replaced by defaults (`mergeSettings`).
 

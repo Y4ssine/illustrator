@@ -30,18 +30,26 @@ and follows Illustrator's UI brightness.
 └────────────────────────────────────────────────────┘
 ```
 
-| Rail | Tab | Sections |
+| Rail | Tab (Alt+n) | Sections |
 |---|---|---|
-| ⌂ | **Home** | Document (+ recognised plugin items, preview-leftover cleanup) · For this selection (context actions) · Quick actions (favourites) · Artboards (social sizes, carousel, auto-number) · Set up design (recipes) · Recent (history, repeat) |
-| ▦ | **Grid & Guides** | Smart Grid (preset bar, target, structure toggles, columns/rows/ratios, baseline, diagonals, radial, margins, options, Preview / Build) · Guides (edges, centres, thirds, quarters, golden; offsets +8/+16/+24/+32/custom) · Safe areas · Manage plugin guides |
-| ⫴ | **Spacing & Align** | Spacing (live gap read-out, suggested value, system, axis, keep-fixed RTL/LTR, Normalize / Distribute / Match smallest / largest / first, exact gap) · Measure (2 objects, copy values) · Margins to artboard |
-| ▯ | **Shadow Lab** | Mode badge (Add / Editing) · preset bar · type (Ground / Contact / Contact + Ambient) · width, height, softness, opacity sliders · offsets, rotation, live blur · colour · blend · ambient pool · placement · Preview / Add / Update / Re-fit |
-| ◈ | **Layers** | Template, naming format, options · live plan (creates, renames, moves) · per-item proposals with confidence badges, reasons and checkboxes · Organize |
-| ▭ | **Presets** | Kind · list (built-in / mine) · Duplicate, Rename, Edit (validated JSON), Delete · Import / Export |
-| ⚙ | **Settings** | Units, density, direction, bounds, defaults, guide layer name, artboard naming, Safe Mode, poll interval · Diagnostics (copy) · Privacy |
+| ⌂ | **Home** (1) | Document (+ recognised plugin items, preview-leftover cleanup) · For this selection (context actions) · Quick actions (favourites) · Artboards (social sizes, carousel, auto-number) · Set up design · Recent (history, repeat) |
+| ⌒ | **Create** (2) | Design recipes (Campaign hero, Product spotlight, Infographic poster, Celebration post, Quote card: headline, subline, mood, variation, Preview / Build) · Shapes (category, thumbnail grid, per-shape parameters, palette styles incl. foil / glass / outline / neon, native effect, fit to selection or size, Preview / Insert) |
+| ☼ | **Light & Blend** (3) | Scene light (rig presets, **compass** for direction, height, intensity, softness, warmth in Kelvin, custom colour — shared with Shadow) · One-click scenes (6 recipes, amount, variation) · Effects (back glow, rim, floor glow, neon, rays, key light, leak, bokeh, haze, vignette, colour grade; amount, blend, grade) |
+| ▯ | **Shadow Studio** (4) | Mode badge (Add / Editing) · preset bar · style tiles (Studio ground, Cast, True silhouette, Contact, Floating, Long) · subject type · *use the scene light* · compass + light height · strength, softness, length, width · floating lift/mode, long footprint · colour chips + picker · blend · photographic blur · contact · placement · Preview / Add / Update |
+| ◐ | **Colour** (5) | Brand palette (**Extract from selected logo**, roles, colours, add colour, harmonies → use as palette, reset) · Gradients & fills (brand, deep, glow, duotone, fade, foil, glass, sunset, mono + solids; Apply to selection, Add to Swatches) · Backgrounds (aurora, spotlight, sunburst, brand gradient, duotone, soft; mood, variation) · Fades (edge, colour, reach, strength, selection/artboard) |
+| ▥ | **Infographic** (6) | Block tiles (stat cards, bar, column, donut, pie, progress bars, rings, steps, timelines, comparison, pictogram, icon list, header) · data text area (`label | value | note`, Arabic / English samples) · block options · look (card style, light/dark background, roundness, direction, digits, fit to placeholder) · Preview / Add |
+| ▦ | **Grid & Guides** (7) | Smart Grid · Guides · Safe areas · Manage plugin guides |
+| ⫴ | **Spacing & Align** (8) | Spacing · Measure · Margins |
+| ◈ | **Layers** (9) | Template, naming format, options · live plan · per-item proposals · Organize |
+| ▭ | **Presets** (0) | Kind · list · Duplicate, Rename, Edit (validated JSON), Delete · Import / Export |
+| ⚙ | **Settings** | Units, density, direction, bounds, defaults, guide layer name, artboard naming, Safe Mode, poll interval · Creative: photographic blur, digits (0123 / ٠١٢٣), Arabic and Latin font candidates · Diagnostics · Privacy |
 
-The tabs **COMPOSE, DEPTH, COLOR, PATTERN, TYPE, CLEAN, EXPORT** from the brief are
-not shown until their modules exist. There are no placeholder buttons.
+Tabs from the brief that still have no module (PATTERN, TYPE, CLEAN, EXPORT) are not
+shown. There are no placeholder buttons.
+
+Screenshots (simulator, not Illustrator): [Create](images/v2-panel-create-built.png) ·
+[Light](images/v2-panel-light-built.png) · [Shadow](images/v2-panel-shadow-preview.png) ·
+[Colour](images/v2-panel-color-extracted.png) · [Infographic](images/v2-panel-info-built.png).
 
 ## Design system (`src/ui/components`)
 
@@ -58,6 +66,11 @@ not shown until their modules exist. There are no placeholder buttons.
 | `TextField`, `SearchBox` | — |
 | `PresetBar` (PresetDropdown) | select + Save as new + ⋯ menu (update, duplicate, rename, delete) |
 | `ProgressBar` | indeterminate while the host works; determinate API for chunked jobs |
+| `TileGrid` | selectable thumbnail tiles (SVG glyph or CSS preview) — recipes, shapes, styles, effects, blocks |
+| `Compass` | light-direction dial: drag or arrow keys (Shift = 45° steps); shows the sun, the subject and the shadow direction |
+| `Chips` | colour swatch row (pick / copy) |
+| `TextArea` | data entry, `dir="auto"` so Arabic lines read right to left |
+| `PreviewApply` | the standard Preview toggle + primary action pair (debounced live preview) |
 | `Readout`, `Badge`, `Note`, `Empty` | dense read-outs |
 | Toasts | success / info / warn / error; *Details* expands technical info; *Copy diagnostics* |
 | Dialogs | confirm (lists affected items), prompt |

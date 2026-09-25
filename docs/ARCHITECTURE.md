@@ -51,6 +51,8 @@ Verified API facts used by the design, with confidence and sources, are in
 │            palette search · selection context                              │
 │  engines   geometry · grid · guides · spacing · shadow · layers · artboards │
 │            presets · tags · random                                         │
+│  creative  path (Bézier) · colour maths · palette · light · shadow v2 ·    │
+│            shapes · infographics · recipes  (pure op builders → OpSink)    │
 │  protocol  HostOp / Ref / Place / Paint (plain JSON)                       │
 │  host.ts   HostAdapter + DocumentAdapter, SelectionAdapter, LayerAdapter,  │
 │            GuideAdapter, ShapeAdapter, TransformAdapter, AppearanceAdapter,│
@@ -86,10 +88,19 @@ scripts-menu/              F-key trigger scripts (File › Scripts)
 src/
   core/                    protocol, host interfaces, transaction, snapshot, tags,
     commands/              settings, context, errors; command system
-  geometry/                rect, units, ratio
+  geometry/                rect, units, ratio, path (Bézier paths, arcs, hulls)
   guides/                  grid engine, guide generator, safe zones, grid commands
   layout/                  spacing engine/commands, artboard presets/engine/commands
-  effects/                 shadow engine, shadow presets, shadow commands
+  effects/                 light engine/commands (rig, glows, rays, rim, neon, grades,
+                           scene recipes), shadow engine v2/presets/commands,
+                           effect-xml (Live Effect XML builder/parser)
+  color/                   colour maths (OKLab, Kelvin), palette extraction/harmonies/
+                           gradient styles, colour commands (apply, swatches,
+                           backgrounds, fades)
+  shapes/                  parametric shape library, shape commands
+  infographic/             infographic engine (charts, cards, steps, timelines…),
+                           pictogram icons, commands (data parsing, samples)
+  recipes/                 complete design compositions
   layers/                  naming/roles, templates, organizer, auto-sort, commands
   presets/                 models, built-ins, serialization, store
   illustrator/
@@ -129,9 +140,38 @@ cross `evalScript`, be stored in history, and be embedded in the self-test.
 - **Place** says where a new or moved item goes: layer top or bottom, below or above a
   ref, inside a group, or *replace* (take an existing item's slot).
 - **Ops**: `layer.ensure|rename|move|props`, `group.create`, `guides.lines`,
-  `shape.rect|ellipse`, `item.translate|place|remove|rename|tag|appearance|effect`,
-  `items.toLayer`, `artboard.add|update|activate`, `selection.set`, `doc.create`,
-  `af.removeTagged`.
+  `shape.rect|ellipse|path`, `text.point|area`,
+  `item.translate|place|remove|rename|tag|appearance|effect|duplicate|restyle|transform|rotate`,
+  `group.clip`, `swatch.group`, `items.toLayer`, `artboard.add|update|activate`,
+  `selection.set`, `doc.create`, `af.removeTagged`.
+- **Paint**: `none`, `solid`, or `linear`/`radial` gradients with per-stop opacity,
+  an Illustrator-convention `angle` (the host rotates and rescales **only the
+  gradient**, because `GradientColor.angle` cannot be set) and `fit: 'ellipse'` for
+  elliptical radial falloff.
+- **Transforms** are design-space affines `[a, b, c, d, tx, ty]`. The host converts them
+  to Illustrator's Y-up matrix `(a, −b, −c, d)`, applies the linear part about the
+  centre, then translates the centre to where the full affine sends it — exact
+  whatever pivot convention the host uses for "centre". `item.transform`, `item.rotate`
+  and `group.clip` only accept items created by the same batch.
+- **Text** ops set size, colour, font (first installed candidate), leading, tracking,
+  justification, and for Arabic the RTL paragraph direction and the World-Ready
+  composer. Digits are localised in the panel, not with `digitSet`.
+
+### 4.0 Creative engines
+
+The creative modules are pure functions that push ops into an `OpSink` (the
+transaction implements it). They never read the document; the command supplies
+rectangles, refs and item kinds from the snapshot.
+
+| Engine | Builds |
+|---|---|
+| `effects/light-engine` | A `LightRig` (compass direction, elevation, Kelvin or colour, intensity, softness) drives: key spot, back glow, beams (tapered paths rotated about their source edge), light leak, bokeh, vignette, colour grades, haze, floor glow, rim light (recoloured copy of vector art), neon (blurred Screen copies). Area effects are clipping groups limited to the artboard. |
+| `effects/shadow-engine` | Shadow v2 styles. Cast length = height × cot(elevation); direction = away from the light on the ground plane, projected with a low-camera foreshortening. `castMatrix` maps art standing on its base line onto the floor. |
+| `color/palette-engine` | OKLab clustering of area-weighted samples → primary/secondary/accent/dark/light; harmonies, tint ramps, series colours, 9 gradient styles, gold foil. |
+| `shapes/shape-library` | ~30 parametric shapes as clean Bézier paths (true arcs, few anchors), optional multi-part pieces (ribbon tails). |
+| `infographic/info-engine` | Blocks laid out in reading order (right-to-left for Arabic), Arabic-Indic digits, proportional type, palette-driven series colours. |
+| `recipes/recipes` | Compositions: background + frames/stage + lights + shadow + live type on template-role layers. |
+
 
 ### 4.1 Batch semantics (`30-run.jsx`)
 
@@ -233,7 +273,7 @@ Every generated item carries `PageItem.tags`. Tag names are restricted to
 
 | Tag | Meaning |
 |---|---|
-| `AF_type` | `groundShadow`, `contactShadow`, `contactAmbientShadow`, `grid`, `guides`, `subject` |
+| `AF_type` | shadows: `groundShadow`, `contactShadow`, `contactAmbientShadow` (v0.1), `castShadow`, `silhouetteShadow`, `elevationShadow`, `longShadow`; `light` (with `AF_light` = effect id); `shape`; `infographic` (with `AF_info` = block id); `background`; `decor` (fades); `grid`, `guides`, `subject` |
 | `AF_ver` | metadata schema version (1) |
 | `AF_id` | stable id of this item |
 | `AF_src` | `AF_id` of the subject (shadows) |
@@ -246,8 +286,10 @@ Items also get readable names, for example `SHADOW — Ground — hero` or
 **Subjects** get an `AF_id` tag when a shadow is created, so the link survives save and
 reopen. `uuid` is *not* assumed to persist. **Edit existing effect:** when the selection
 is only plugin shadows, the Shadow Lab switches to *Edit*. It loads `AF_params` and
-rebuilds the shadow in the same stacking slot (`place: replace`), keeping its `AF_id`. It
-also keeps the shadow where the designer moved it, unless *Re-fit to object* is used.
+rebuilds the shadow in the same stacking slot (`place: replace`), keeping its `AF_id`,
+fitted to the subject's current position (v0.1 shadows are upgraded to the v2 style
+model when edited). A copied subject (silhouette, rim, neon) has its `AF_*` tags stripped
+so ids stay unique.
 
 ---
 
@@ -264,10 +306,11 @@ it can prove the last step is the preview:
 
 After undoing, it checks that the preview items are gone. If they are not, it calls
 `app.redo()` to put back what it undid and deletes the preview items by reference
-instead. The designer's own actions are never undone. *Apply* reverts the preview, then
-commits the final batch as one step. Previews are purely additive, and ops like
-translate, remove or replace are rejected, so the fallback path always restores the
-document exactly. If a session crashes mid-preview, the leftovers can be found and
+instead. The designer's own actions are never undone. *Apply* first removes the preview,
+then plans the command against the document **without** it (a preview may have created
+layers), and commits the final batch as one step. Previews are purely additive: ops like
+translate, remove or replace are rejected, and restyle/transform only touch items the
+preview itself created, so the fallback path always restores the document exactly. If a session crashes mid-preview, the leftovers can be found and
 removed from HOME.
 
 ---
