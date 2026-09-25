@@ -1,0 +1,174 @@
+{
+  "format": "artboard-forge.presets",
+  "version": 1,
+  "kind": "grid",
+  "presets": [
+    {
+      "id": "campaign-grid",
+      "name": "Campaign Grid",
+      "notes": "6 × 8 modular grid, 24 pt gutters, 72 pt margins, centre axes. Tuned for 1080-wide social posts.",
+      "spec": {
+        "margins": {
+          "top": 72,
+          "right": 72,
+          "bottom": 72,
+          "left": 72
+        },
+        "columns": {
+          "count": 6,
+          "gutter": 24
+        },
+        "rows": {
+          "count": 8,
+          "gutter": 24
+        },
+        "center": true,
+        "marginGuides": true,
+        "spanArea": true
+      }
+    },
+    {
+      "id": "twelve-column",
+      "name": "12 Columns",
+      "spec": {
+        "margins": {
+          "top": 64,
+          "right": 64,
+          "bottom": 64,
+          "left": 64
+        },
+        "columns": {
+          "count": 12,
+          "gutter": 24
+        },
+        "marginGuides": true,
+        "spanArea": true
+      }
+    },
+    {
+      "id": "poster",
+      "name": "Poster (12 col + baseline + thirds)",
+      "notes": "12 columns, 12 pt baseline, thirds and centre axis.",
+      "spec": {
+        "margins": {
+          "top": 96,
+          "right": 72,
+          "bottom": 120,
+          "left": 72
+        },
+        "columns": {
+          "count": 12,
+          "gutter": 20
+        },
+        "baseline": {
+          "increment": 12,
+          "offset": 0
+        },
+        "thirds": true,
+        "center": true,
+        "marginGuides": true,
+        "spanArea": true
+      }
+    },
+    {
+      "id": "editorial",
+      "name": "Editorial (5 col, deep foot)",
+      "spec": {
+        "margins": {
+          "top": 80,
+          "right": 64,
+          "bottom": 140,
+          "left": 64
+        },
+        "columns": {
+          "count": 5,
+          "gutter": 20
+        },
+        "rows": {
+          "count": 6,
+          "gutter": 20
+        },
+        "marginGuides": true,
+        "spanArea": true
+      }
+    },
+    {
+      "id": "thirds",
+      "name": "Rule of Thirds",
+      "spec": {
+        "margins": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "thirds": true,
+        "marginGuides": false
+      }
+    },
+    {
+      "id": "golden",
+      "name": "Golden Sections",
+      "spec": {
+        "margins": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "golden": true,
+        "center": false,
+        "marginGuides": false
+      }
+    },
+    {
+      "id": "diagonal",
+      "name": "Diagonal Method",
+      "spec": {
+        "margins": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "diagonals": "fortyFive",
+        "center": true,
+        "marginGuides": false
+      }
+    },
+    {
+      "id": "baseline-8",
+      "name": "Baseline 8",
+      "spec": {
+        "margins": {
+          "top": 64,
+          "right": 64,
+          "bottom": 64,
+          "left": 64
+        },
+        "baseline": {
+          "increment": 8,
+          "offset": 0
+        },
+        "marginGuides": true
+      }
+    },
+    {
+      "id": "radial-12",
+      "name": "Radial 12 spokes",
+      "spec": {
+        "margins": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "radial": {
+          "spokes": 12
+        },
+        "center": true,
+        "marginGuides": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "format": "artboard-forge.presets",
+  "version": 1,
+  "kind": "shadow",
+  "presets": [
+    {
+      "id": "ex-majlis-evening",
+      "name": "Majlis Evening (warm, soft)",
+      "notes": "Example custom preset: warm low light for interior campaign scenes.",
+      "params": {
+        "kind": "contactAmbient",
+        "widthScale": 0.62,
+        "flatness": 0.06,
+        "softness": 0.4,
+        "opacity": 48,
+        "offsetX": 0,
+        "offsetY": 0,
+        "rotation": 0,
+        "color": "#2A1A0E",
+        "blend": "multiply",
+        "liveBlur": 0,
+        "ambient": {
+          "widthScale": 1.35,
+          "flatness": 0.2,
+          "softness": 0.92,
+          "opacity": 26
+        }
+      }
+    },
+    {
+      "id": "ex-desert-noon",
+      "name": "Desert Noon (hard)",
+      "notes": "Example: overhead sun on sand — compact, crisp, warm-black.",
+      "params": {
+        "kind": "ground",
+        "widthScale": 0.72,
+        "flatness": 0.2,
+        "softness": 0.18,
+        "opacity": 42,
+        "offsetX": 0,
+        "offsetY": 0,
+        "rotation": 0,
+        "color": "#3A2412",
+        "blend": "multiply",
+        "liveBlur": 0,
+        "ambient": {
+          "widthScale": 1.15,
+          "flatness": 0.2,
+          "softness": 0.92,
+          "opacity": 22
+        }
+      }
+    }
+  ]
+}

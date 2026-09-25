@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Artboard Forge — CEP extension manifest.
+  Host ILST [25.3,99.9] = Illustrator 2021 (25.3) and later: CEP 11 from 25.3, CEP 12 from 29.5.1.
+  25.0-25.2 (CEP 10, Chromium 74) are excluded because the panel CSS relies on
+  Chromium 88 features (flexbox gap, :focus-visible, inset).
+  RequiredRuntime CSXS 11.0 is a minimum. ScriptPath loads the ExtendScript host into the panel's engine.
+-->
+<ExtensionManifest Version="6.0" ExtensionBundleId="com.artboardforge" ExtensionBundleVersion="0.1.0" ExtensionBundleName="Artboard Forge" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <ExtensionList>
+    <Extension Id="com.artboardforge.panel" Version="0.1.0" />
+  </ExtensionList>
+  <ExecutionEnvironment>
+    <HostList>
+      <Host Name="ILST" Version="[25.3,99.9]" />
+    </HostList>
+    <LocaleList>
+      <Locale Code="All" />
+    </LocaleList>
+    <RequiredRuntimeList>
+      <RequiredRuntime Name="CSXS" Version="11.0" />
+    </RequiredRuntimeList>
+  </ExecutionEnvironment>
+  <DispatchInfoList>
+    <Extension Id="com.artboardforge.panel">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./index.html</MainPath>
+          <ScriptPath>./jsx/host.jsx</ScriptPath>
+          <CEFCommandLine>
+            <Parameter>--allow-file-access-from-files</Parameter>
+          </CEFCommandLine>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>true</AutoVisible>
+        </Lifecycle>
+        <UI>
+          <Type>Panel</Type>
+          <Menu>Artboard Forge</Menu>
+          <Geometry>
+            <Size>
+              <Height>640</Height>
+              <Width>320</Width>
+            </Size>
+            <MinSize>
+              <Height>300</Height>
+              <Width>220</Width>
+            </MinSize>
+            <MaxSize>
+              <Height>2400</Height>
+              <Width>900</Width>
+            </MaxSize>
+          </Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+  </DispatchInfoList>
+</ExtensionManifest>

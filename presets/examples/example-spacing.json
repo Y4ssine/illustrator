@@ -1,0 +1,30 @@
+{
+  "format": "artboard-forge.presets",
+  "version": 1,
+  "kind": "spacing",
+  "presets": [
+    {
+      "id": "ex-campaign-tokens",
+      "name": "Campaign tokens",
+      "notes": "Example design tokens for a campaign.",
+      "system": {
+        "kind": "scale",
+        "values": [
+          8,
+          16,
+          24,
+          32,
+          48,
+          64,
+          96
+        ]
+      },
+      "tokens": {
+        "S": 8,
+        "M": 16,
+        "L": 32,
+        "XL": 64
+      }
+    }
+  ]
+}

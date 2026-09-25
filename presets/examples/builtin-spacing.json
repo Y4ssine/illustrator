@@ -1,0 +1,65 @@
+{
+  "format": "artboard-forge.presets",
+  "version": 1,
+  "kind": "spacing",
+  "presets": [
+    {
+      "id": "sp-4",
+      "name": "4 px system",
+      "system": {
+        "kind": "multiple",
+        "base": 4
+      }
+    },
+    {
+      "id": "sp-8",
+      "name": "8 px system",
+      "system": {
+        "kind": "multiple",
+        "base": 8
+      }
+    },
+    {
+      "id": "sp-10",
+      "name": "10 px system",
+      "system": {
+        "kind": "multiple",
+        "base": 10
+      }
+    },
+    {
+      "id": "sp-12",
+      "name": "12 px system",
+      "system": {
+        "kind": "multiple",
+        "base": 12
+      }
+    },
+    {
+      "id": "sp-tokens",
+      "name": "Token scale (4 → 128)",
+      "system": {
+        "kind": "scale",
+        "values": [
+          4,
+          8,
+          12,
+          16,
+          24,
+          32,
+          48,
+          64,
+          96,
+          128
+        ]
+      },
+      "tokens": {
+        "XS": 4,
+        "S": 8,
+        "M": 16,
+        "L": 32,
+        "XL": 64
+      }
+    }
+  ]
+}

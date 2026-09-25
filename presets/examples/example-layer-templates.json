@@ -1,0 +1,67 @@
+{
+  "format": "artboard-forge.presets",
+  "version": 1,
+  "kind": "layerTemplate",
+  "presets": [
+    {
+      "id": "ex-carousel",
+      "name": "Carousel Production",
+      "format": "underscore",
+      "notes": "Example: flat structure for multi-slide carousels.",
+      "layers": [
+        {
+          "role": "guides",
+          "label": "GUIDES",
+          "number": 0,
+          "printable": false
+        },
+        {
+          "role": "notes",
+          "label": "NOTES",
+          "number": 9,
+          "printable": false
+        },
+        {
+          "role": "brand",
+          "label": "LOGOS",
+          "number": 8
+        },
+        {
+          "role": "typography",
+          "label": "COPY",
+          "number": 7
+        },
+        {
+          "role": "decorations",
+          "label": "MOTIFS",
+          "number": 6
+        },
+        {
+          "role": "lighting",
+          "label": "LIGHT",
+          "number": 5
+        },
+        {
+          "role": "subject",
+          "label": "HERO",
+          "number": 4
+        },
+        {
+          "role": "images",
+          "label": "PHOTOS",
+          "number": 3
+        },
+        {
+          "role": "atmosphere",
+          "label": "HAZE",
+          "number": 2
+        },
+        {
+          "role": "background",
+          "label": "BG",
+          "number": 1
+        }
+      ]
+    }
+  ]
+}

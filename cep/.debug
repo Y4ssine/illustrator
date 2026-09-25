@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Remote debugging: with the panel open, browse to http://localhost:8098 in Chrome. Remove from release builds. -->
+<ExtensionList>
+  <Extension Id="com.artboardforge.panel">
+    <HostList>
+      <Host Name="ILST" Port="8098" />
+    </HostList>
+  </Extension>
+</ExtensionList>

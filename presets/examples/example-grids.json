@@ -1,0 +1,60 @@
+{
+  "format": "artboard-forge.presets",
+  "version": 1,
+  "kind": "grid",
+  "presets": [
+    {
+      "id": "ex-founding-poster",
+      "name": "Founding Day Poster 4:5",
+      "notes": "Example: 8 columns, deep footer for sponsor logos, thirds for the hero.",
+      "spec": {
+        "margins": {
+          "top": 88,
+          "right": 72,
+          "bottom": 160,
+          "left": 72
+        },
+        "columns": {
+          "count": 8,
+          "gutter": 20
+        },
+        "rows": {
+          "count": 10,
+          "gutter": 20
+        },
+        "thirds": true,
+        "center": true,
+        "marginGuides": true,
+        "spanArea": true
+      }
+    },
+    {
+      "id": "ex-rtl-editorial",
+      "name": "Arabic Editorial 3:2:1",
+      "notes": "Example: asymmetric columns — wide Arabic headline column on the right.",
+      "spec": {
+        "margins": {
+          "top": 80,
+          "right": 64,
+          "bottom": 96,
+          "left": 64
+        },
+        "columns": {
+          "count": 3,
+          "gutter": 24,
+          "ratios": [
+            1,
+            2,
+            3
+          ]
+        },
+        "baseline": {
+          "increment": 12,
+          "offset": 0
+        },
+        "marginGuides": true,
+        "spanArea": true
+      }
+    }
+  ]
+}

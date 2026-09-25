@@ -1,0 +1,39 @@
+{
+  "format": "artboard-forge.presets",
+  "version": 1,
+  "kind": "palette",
+  "presets": [
+    {
+      "id": "ex-heritage",
+      "name": "Heritage Clay (example)",
+      "notes": "Illustrative only — use the client’s own brand values.",
+      "colors": [
+        {
+          "name": "Clay",
+          "hex": "#A0522D",
+          "role": "primary"
+        },
+        {
+          "name": "Palm",
+          "hex": "#2F5D3A",
+          "role": "secondary"
+        },
+        {
+          "name": "Sand",
+          "hex": "#E9D8B4",
+          "role": "background"
+        },
+        {
+          "name": "Brass",
+          "hex": "#B5903C",
+          "role": "accent"
+        },
+        {
+          "name": "Ink",
+          "hex": "#1E1B18",
+          "role": "text"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "name": "artboard-forge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Artboard Forge \u2014 professional layout, grid, shadow and layer tooling for Adobe Illustrator (CEP panel + ExtendScript host).",
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:watch": "node scripts/build.mjs --watch",
+    "dev": "node scripts/build.mjs --dev",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tests/tsconfig.json",
+    "check:es3": "node scripts/check-es3.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "bench": "node scripts/bench.mjs",
+    "verify": "npm run typecheck && npm run build && npm run check:es3 && npm test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "acorn": "^8.18.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

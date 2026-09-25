@@ -1,0 +1,93 @@
+{
+  "format": "artboard-forge.presets",
+  "version": 1,
+  "kind": "artboard",
+  "presets": [
+    {
+      "id": "ig-square",
+      "name": "Instagram Square",
+      "code": "IG_SQUARE",
+      "w": 1080,
+      "h": 1080,
+      "colorSpace": "RGB"
+    },
+    {
+      "id": "ig-portrait",
+      "name": "Instagram Portrait",
+      "code": "IG_PORTRAIT",
+      "w": 1080,
+      "h": 1350,
+      "colorSpace": "RGB",
+      "safeZone": "ig-portrait-grid"
+    },
+    {
+      "id": "ig-story",
+      "name": "Instagram Story",
+      "code": "IG_STORY",
+      "w": 1080,
+      "h": 1920,
+      "colorSpace": "RGB",
+      "safeZone": "ig-story"
+    },
+    {
+      "id": "x-post",
+      "name": "X / Twitter Post",
+      "code": "X_POST",
+      "w": 1600,
+      "h": 900,
+      "colorSpace": "RGB"
+    },
+    {
+      "id": "linkedin-square",
+      "name": "LinkedIn Square",
+      "code": "LI_SQUARE",
+      "w": 1200,
+      "h": 1200,
+      "colorSpace": "RGB"
+    },
+    {
+      "id": "linkedin-landscape",
+      "name": "LinkedIn Landscape",
+      "code": "LI_LANDSCAPE",
+      "w": 1200,
+      "h": 627,
+      "colorSpace": "RGB"
+    },
+    {
+      "id": "youtube-thumb",
+      "name": "YouTube Thumbnail",
+      "code": "YT_THUMB",
+      "w": 1280,
+      "h": 720,
+      "colorSpace": "RGB",
+      "safeZone": "action-safe-5"
+    },
+    {
+      "id": "presentation",
+      "name": "Presentation 16:9",
+      "code": "SLIDE",
+      "w": 1920,
+      "h": 1080,
+      "colorSpace": "RGB",
+      "safeZone": "title-safe-10"
+    },
+    {
+      "id": "a4",
+      "name": "A4 Portrait",
+      "code": "A4",
+      "w": 595.2755905511812,
+      "h": 841.8897637795276,
+      "colorSpace": "CMYK",
+      "safeZone": "print-5mm"
+    },
+    {
+      "id": "a3",
+      "name": "A3 Portrait",
+      "code": "A3",
+      "w": 841.8897637795276,
+      "h": 1190.5511811023623,
+      "colorSpace": "CMYK",
+      "safeZone": "print-5mm"
+    }
+  ]
+}

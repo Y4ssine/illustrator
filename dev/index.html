@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Artboard Forge Simulator</title>
+    <link rel="stylesheet" href="./css/panel.css" />
+    <link rel="stylesheet" href="./sim.css" />
+  </head>
+  <body class="sim-body">
+    <div class="sim-layout">
+      <section class="sim-stage">
+        <header class="sim-bar">
+          <strong>SIMULATOR</strong>
+          <span class="sim-warn">Mock Illustrator DOM running the real host script — not Illustrator.</span>
+          <span class="sim-spacer"></span>
+          <a href="?doc=sample">Sample doc</a>
+          <a href="?doc=empty">Empty doc</a>
+          <a href="?doc=none">No doc</a>
+          <button id="sim-selectall" type="button">Select all</button>
+          <button id="sim-undo" type="button">Undo</button>
+          <button id="sim-redo" type="button">Redo</button>
+          <button id="sim-reopen" type="button" title="Serialise, close and reopen the document (uuids change, tags persist)">Save &amp; reopen</button>
+          <button id="sim-text" type="button" title="Simulate the Type tool editing text">Text editing</button>
+        </header>
+        <div id="sim-canvas" class="sim-canvas" title="Click to select, Shift-click to add"></div>
+        <aside class="sim-layers-panel"><div class="sim-layers-title">LAYERS</div><ul id="sim-layers"></ul></aside>
+      </section>
+      <section class="sim-panel"><div id="app"></div></section>
+    </div>
+    <script src="./js/sim.js"></script>
+  </body>
+</html>

@@ -1,0 +1,81 @@
+{
+  "format": "artboard-forge.presets",
+  "version": 1,
+  "kind": "palette",
+  "presets": [
+    {
+      "id": "pal-green-sand",
+      "name": "Green & Sand (example)",
+      "notes": "Illustrative example palette — not an official specification.",
+      "colors": [
+        {
+          "name": "Campaign Green",
+          "hex": "#0B6B3A",
+          "role": "primary"
+        },
+        {
+          "name": "Deep Green",
+          "hex": "#063D24",
+          "role": "secondary"
+        },
+        {
+          "name": "Sand",
+          "hex": "#D8C3A0",
+          "role": "background"
+        },
+        {
+          "name": "Warm Beige",
+          "hex": "#EFE3CF",
+          "role": "background"
+        },
+        {
+          "name": "Antique Gold",
+          "hex": "#B08D4A",
+          "role": "accent"
+        },
+        {
+          "name": "Warm White",
+          "hex": "#FAF6EE",
+          "role": "neutral"
+        },
+        {
+          "name": "Charcoal",
+          "hex": "#2A2A28",
+          "role": "text"
+        }
+      ]
+    },
+    {
+      "id": "pal-night-gold",
+      "name": "Night & Gold (example)",
+      "notes": "Illustrative example palette.",
+      "colors": [
+        {
+          "name": "Night",
+          "hex": "#0F1A17",
+          "role": "background"
+        },
+        {
+          "name": "Oasis Green",
+          "hex": "#1F5C45",
+          "role": "primary"
+        },
+        {
+          "name": "Gold",
+          "hex": "#C9A45C",
+          "role": "accent"
+        },
+        {
+          "name": "Dune",
+          "hex": "#E6D5B8",
+          "role": "neutral"
+        },
+        {
+          "name": "Ivory",
+          "hex": "#FBF7EF",
+          "role": "text"
+        }
+      ]
+    }
+  ]
+}

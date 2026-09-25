@@ -1,0 +1,295 @@
+{
+  "format": "artboard-forge.presets",
+  "version": 1,
+  "kind": "shadow",
+  "presets": [
+    {
+      "id": "soft-social",
+      "name": "Soft Social Media",
+      "notes": "Gentle, wide, low contrast. Safe default for feeds.",
+      "params": {
+        "kind": "ground",
+        "widthScale": 0.95,
+        "flatness": 0.16,
+        "softness": 0.85,
+        "opacity": 26,
+        "offsetX": 0,
+        "offsetY": 0,
+        "rotation": 0,
+        "color": "#1A1410",
+        "blend": "multiply",
+        "liveBlur": 0,
+        "ambient": {
+          "widthScale": 1.15,
+          "flatness": 0.2,
+          "softness": 0.92,
+          "opacity": 22
+        }
+      }
+    },
+    {
+      "id": "person-grounded",
+      "name": "Person Grounded",
+      "notes": "Tight contact under the feet plus a soft ambient pool.",
+      "params": {
+        "kind": "contactAmbient",
+        "widthScale": 0.55,
+        "flatness": 0.07,
+        "softness": 0.4,
+        "opacity": 58,
+        "offsetX": 0,
+        "offsetY": 0,
+        "rotation": 0,
+        "color": "#120E0B",
+        "blend": "multiply",
+        "liveBlur": 0,
+        "ambient": {
+          "widthScale": 1.2,
+          "flatness": 0.18,
+          "softness": 0.95,
+          "opacity": 20
+        }
+      }
+    },
+    {
+      "id": "product-photo",
+      "name": "Product Photography",
+      "notes": "Studio product on a sweep: crisp contact, soft spread.",
+      "params": {
+        "kind": "contactAmbient",
+        "widthScale": 0.85,
+        "flatness": 0.08,
+        "softness": 0.3,
+        "opacity": 62,
+        "offsetX": 0,
+        "offsetY": 0,
+        "rotation": 0,
+        "color": "#120E0B",
+        "blend": "multiply",
+        "liveBlur": 0,
+        "ambient": {
+          "widthScale": 1.25,
+          "flatness": 0.16,
+          "softness": 0.9,
+          "opacity": 24
+        }
+      }
+    },
+    {
+      "id": "luxury-product",
+      "name": "Luxury Product",
+      "notes": "Very thin, dark contact line with a restrained halo.",
+      "params": {
+        "kind": "contactAmbient",
+        "widthScale": 0.8,
+        "flatness": 0.05,
+        "softness": 0.25,
+        "opacity": 70,
+        "offsetX": 0,
+        "offsetY": 0,
+        "rotation": 0,
+        "color": "#0E0B08",
+        "blend": "multiply",
+        "liveBlur": 0,
+        "ambient": {
+          "widthScale": 1.1,
+          "flatness": 0.12,
+          "softness": 0.95,
+          "opacity": 16
+        }
+      }
+    },
+    {
+      "id": "floating-card",
+      "name": "Floating Card",
+      "notes": "Detached from the object to suggest lift.",
+      "params": {
+        "kind": "ground",
+        "widthScale": 0.82,
+        "flatness": 0.12,
+        "softness": 0.95,
+        "opacity": 22,
+        "offsetX": 0,
+        "offsetY": 8,
+        "rotation": 0,
+        "color": "#1A1410",
+        "blend": "multiply",
+        "liveBlur": 0,
+        "ambient": {
+          "widthScale": 1.15,
+          "flatness": 0.2,
+          "softness": 0.92,
+          "opacity": 22
+        }
+      }
+    },
+    {
+      "id": "car-grounded",
+      "name": "Car Grounded",
+      "notes": "Long, flat contact along the wheelbase.",
+      "params": {
+        "kind": "contactAmbient",
+        "widthScale": 0.92,
+        "flatness": 0.09,
+        "softness": 0.3,
+        "opacity": 65,
+        "offsetX": 0,
+        "offsetY": 0,
+        "rotation": 0,
+        "color": "#120E0B",
+        "blend": "multiply",
+        "liveBlur": 0,
+        "ambient": {
+          "widthScale": 1.08,
+          "flatness": 0.2,
+          "softness": 0.85,
+          "opacity": 26
+        }
+      }
+    },
+    {
+      "id": "poster-dramatic",
+      "name": "Poster Dramatic (ground)",
+      "notes": "High-contrast ground pool for bold posters.",
+      "params": {
+        "kind": "ground",
+        "widthScale": 1.25,
+        "flatness": 0.12,
+        "softness": 0.55,
+        "opacity": 48,
+        "offsetX": 0,
+        "offsetY": 0,
+        "rotation": 0,
+        "color": "#000000",
+        "blend": "multiply",
+        "liveBlur": 0,
+        "ambient": {
+          "widthScale": 1.15,
+          "flatness": 0.2,
+          "softness": 0.92,
+          "opacity": 22
+        }
+      }
+    },
+    {
+      "id": "sunset",
+      "name": "Sunset (long ground)",
+      "notes": "Low sun: elongated, warm, pushed away from the light.",
+      "params": {
+        "kind": "ground",
+        "widthScale": 1.9,
+        "flatness": 0.07,
+        "softness": 0.8,
+        "opacity": 30,
+        "offsetX": 55,
+        "offsetY": 0,
+        "rotation": 0,
+        "color": "#2A1608",
+        "blend": "multiply",
+        "liveBlur": 0,
+        "ambient": {
+          "widthScale": 1.15,
+          "flatness": 0.2,
+          "softness": 0.92,
+          "opacity": 22
+        }
+      }
+    },
+    {
+      "id": "studio-left",
+      "name": "Studio Left",
+      "notes": "Key light from the left; shadow falls right.",
+      "params": {
+        "kind": "ground",
+        "widthScale": 1.05,
+        "flatness": 0.13,
+        "softness": 0.7,
+        "opacity": 32,
+        "offsetX": 14,
+        "offsetY": 0,
+        "rotation": -3,
+        "color": "#1A1410",
+        "blend": "multiply",
+        "liveBlur": 0,
+        "ambient": {
+          "widthScale": 1.15,
+          "flatness": 0.2,
+          "softness": 0.92,
+          "opacity": 22
+        }
+      }
+    },
+    {
+      "id": "studio-right",
+      "name": "Studio Right",
+      "notes": "Key light from the right; shadow falls left.",
+      "params": {
+        "kind": "ground",
+        "widthScale": 1.05,
+        "flatness": 0.13,
+        "softness": 0.7,
+        "opacity": 32,
+        "offsetX": -14,
+        "offsetY": 0,
+        "rotation": 3,
+        "color": "#1A1410",
+        "blend": "multiply",
+        "liveBlur": 0,
+        "ambient": {
+          "widthScale": 1.15,
+          "flatness": 0.2,
+          "softness": 0.92,
+          "opacity": 22
+        }
+      }
+    },
+    {
+      "id": "soft-noon",
+      "name": "Soft Noon",
+      "notes": "Overhead diffuse light: small, round, soft.",
+      "params": {
+        "kind": "ground",
+        "widthScale": 0.75,
+        "flatness": 0.2,
+        "softness": 0.9,
+        "opacity": 28,
+        "offsetX": 0,
+        "offsetY": 0,
+        "rotation": 0,
+        "color": "#1A1410",
+        "blend": "multiply",
+        "liveBlur": 0,
+        "ambient": {
+          "widthScale": 1.15,
+          "flatness": 0.2,
+          "softness": 0.92,
+          "opacity": 22
+        }
+      }
+    },
+    {
+      "id": "hard-noon",
+      "name": "Hard Noon",
+      "notes": "Overhead direct sun: compact and crisp.",
+      "params": {
+        "kind": "ground",
+        "widthScale": 0.7,
+        "flatness": 0.18,
+        "softness": 0.2,
+        "opacity": 45,
+        "offsetX": 0,
+        "offsetY": 0,
+        "rotation": 0,
+        "color": "#1A1410",
+        "blend": "multiply",
+        "liveBlur": 0,
+        "ambient": {
+          "widthScale": 1.15,
+          "flatness": 0.2,
+          "softness": 0.92,
+          "opacity": 22
+        }
+      }
+    }
+  ]
+}
